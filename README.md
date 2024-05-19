@@ -1,6 +1,6 @@
 <p align="center">
     <a href="" rel="noopener">
-        <img width="700" height="400" src="https://github.com/OUGC-Network/OUGC-File-Profile-Fields/assets/1786584/43e1a95c-ffa2-4c7f-9174-65db36913565" alt="Project logo">
+        <img width="700" height="400" src="https://github.com/OUGC-Network/OUGC-File-Profile-Fields/assets/1786584/497e34d3-abda-41b2-9b4d-c640c648cd06" alt="Project logo">
     </a>
 </p>
 
@@ -57,6 +57,7 @@ A setup that meets the following requirements is necessary to use this plugin.
 
 - [MyBB](https://mybb.com/) >= 1.8
 - PHP >= 7.0
+    - WebP Image Support requires PHP >= 7.1
 - [PluginLibrary for MyBB](https://github.com/frostschutz/MyBB-PluginLibrary) >= 13
 
 ### File structure <a name = "file_structure"></a>
@@ -165,6 +166,8 @@ Below you can find a description of the plugin settings.
 
 ## 📖 Usage <a name="usage"></a>
 
+### File Permissions
+
 For automatic file edits the following files require to be chmod 777 (on *nix servers).
 
 - modcp.php
@@ -208,7 +211,3 @@ official [MyBB Community](https://community.mybb.com/thread-221815.html).
 Thanks for downloading and using our plugins!
 
 [Go up to Table of Contents](#table_of_contents)
-
-webp support since 7.1
-
-Edit attachment files for `Profile Fields File` setting
