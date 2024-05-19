@@ -1,0 +1,12 @@
+<tr valign="top">
+	<td class="{$trow}">{$profilelink}</td>
+	<td class="{$trow}">
+		{$icon}
+		<a href="{$mybb->settings['bburl']}/ougc_fileprofilefields.php?aid={$log['aid']}" target="_blank">
+			{$filename}
+		</a>
+	</td>
+	<td class="{$trow}" align="center">{$filesize}</td>
+	<td class="{$trow}" align="center">{$dateline}</td>
+	<td class="{$trow}" width="1" align="center"><input type="checkbox" class="checkbox" name="check[{$log['lid']}]" value="{$log['lid']}" /></td>
+</tr>
