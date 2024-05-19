@@ -227,7 +227,7 @@ theme.
 - **Add before** `{$GLOBALS['ougc_fileprofilefields']['fid10']}` where `10`is the custom profile field
   identifier (`fid`).
 
-![image](https://github.com/OUGC-Network/OUGC-File-Profile-Fields/assets/1786584/633ed306-9be2-4011-a61a-c77cf0c1b9ba)
+![image](https://github.com/OUGC-Network/OUGC-File-Profile-Fields/assets/1786584/6c2c53b9-00b9-436c-b5b1-78ad9c9d5b62)
 
 [Go up to Table of Contents](#table_of_contents)
 
