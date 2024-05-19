@@ -32,6 +32,8 @@
     - [Template Modifications](#template_modifications)
 - [Settings](#settings)
 - [Usage](#usage)
+    - [File Permissions](#file_permissions)
+    - [Example Configurations](#usage_examples)
 - [Built Using](#built_using)
 - [Authors](#authors)
 - [Acknowledgments](#acknowledgement)
@@ -166,17 +168,66 @@ Below you can find a description of the plugin settings.
 
 ## 📖 Usage <a name="usage"></a>
 
-### File Permissions
+This plugin has no additional configurations; after activating make sure to modify the global settings in order to get
+this plugin working.
 
-For automatic file edits the following files require to be chmod 777 (on *nix servers).
+### 🛠 File Permissions <a name = "file_permissions"></a>
+
+For automatic file edits the following files require to be chmod `777` (on *nix servers).
 
 - modcp.php
 - usercp.php
 - member.php
 - inc/functions_post.
 
-This plugin has no additional configurations; after activating make sure to modify the global settings in order to get
-this plugin working.
+### 🛠 Example Configurations <a name = "usage_examples"></a>
+
+#### Custom Profile Cover Image
+
+The following would be the necessary configuration to allow users to upload a custom image to use in their profiles as
+their cover image, using the stock MyBB theme.
+
+##### Custom Profile Field
+
+- **Title** `Profile Cover`
+- **Short Description** `Upload an image to be used as your profile cover.`
+- **Field Type** `File`
+- **File Types** `PNG Image (png)`
+- **Maximum File Size (Kilobytes)** `2048`
+- **Uploads Path** `./uploads/covers` (chmod `777`)
+- **Custom Output** `Yes`
+- **Only Image Files** `Yes`
+- **Minimum Image Dimensions** `600|200`
+- **Maximum Image Dimensions** `1000|400`
+- **Display on profile?** `Yes`
+- **Display on postbit?** `No`
+- **Viewable By** `All groups`
+- **Editable By** `All groups`
+
+##### Custom Template
+
+A custom template should be created either in the _Global Templates_ set for all themes or in each template set for each
+theme.
+
+- **Template Name** `ougcfileprofilefields_profile_file_10`
+- **Contents** The CLASS selector will target the profile user table in the stock MyBB theme.
+
+```HTML
+<style>
+	#content > div:nth-child(1) > fieldset:nth-child(5) {
+		background-image: url('{$mybb->settings['bburl']}/ougc_fileprofilefields.php?aid={$aid}');
+	}
+</style>
+```
+
+##### Template Modifications
+
+- **Template Name** `member_profile`
+- **Find** `{$footer}`
+- **Add before** `{$GLOBALS['ougc_fileprofilefields']['fid10']}` where `10`is the custom profile field
+  identifier (`fid`).
+
+![image](https://github.com/OUGC-Network/OUGC-File-Profile-Fields/assets/1786584/633ed306-9be2-4011-a61a-c77cf0c1b9ba)
 
 [Go up to Table of Contents](#table_of_contents)
 
