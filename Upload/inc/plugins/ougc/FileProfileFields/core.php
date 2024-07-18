@@ -112,6 +112,34 @@ function addHooks(string $namespace)
     }
 }
 
+function getTemplateName(string $templateName = ''): string
+{
+    $templatePrefix = '';
+
+    if ($templateName) {
+        $templatePrefix = '_';
+    }
+
+    return "ougcfileprofilefields{$templatePrefix}{$templateName}";
+}
+
+function getTemplate(string $templateName = '', bool $enableHTMLComments = true): string
+{
+    global $templates;
+
+    if (DEBUG) {
+        $filePath = ROOT . "/templates/{$templateName}.html";
+
+        $templateContents = file_get_contents($filePath);
+
+        $templates->cache[getTemplateName($templateName)] = $templateContents;
+    } elseif (my_strpos($templateName, '/') !== false) {
+        $templateName = substr($templateName, strpos($templateName, '/') + 1);
+    }
+
+    return $templates->render(getTemplateName($templateName), true, $enableHTMLComments);
+}
+
 // Set url
 function set_url(string $url = '')
 {
@@ -301,7 +329,7 @@ function upload_file(int $uid, array $profilefield)
         'size' => $_FILES['profile_fields']['size'][$field],
     ], $uploadpath, $filename);
 
-    if ($file['error'] || !file_exists("{$uploadpath}/{$filename}")) {
+    if (isset($file['error']) || !file_exists("{$uploadpath}/{$filename}")) {
         delete_uploaded_file("{$uploadpath}/{$filename}");
 
         $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_file_exists;

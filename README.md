@@ -178,7 +178,7 @@ For automatic file edits the following files require to be chmod `777` (on *nix 
 - modcp.php
 - usercp.php
 - member.php
-- inc/functions_post.
+- inc/functions_post.php
 
 ### 🛠 Example Configurations <a name = "usage_examples"></a>
 

@@ -33,25 +33,21 @@ namespace ougc\FileProfileFields\Hooks\Admin;
 use MyBB;
 
 use function ougc\FileProfileFields\Admin\_db_columns;
-
 use function ougc\FileProfileFields\Admin\_edits_apply;
-
 use function ougc\FileProfileFields\Admin\_edits_revert;
-
 use function ougc\FileProfileFields\Core\get_userfields;
-
 use function ougc\FileProfileFields\Core\load_language;
-
 use function ougc\FileProfileFields\Core\query_file;
+use function ougc\FileProfileFields\Core\getTemplate;
 
 use const MYBB_ROOT;
 
-function admin_config_plugins_begin()
+function admin_config_plugins_begin(): bool
 {
     global $mybb, $lang;
 
     if (!$mybb->get_input('ougc_fileprofilefields')) {
-        return;
+        return false;
     }
 
     verify_post_check($mybb->get_input('my_post_key'));
@@ -75,9 +71,11 @@ function admin_config_plugins_begin()
 
         admin_redirect('index.php?module=config-plugins');
     }
+
+    return true;
 }
 
-function admin_config_plugins_deactivate()
+function admin_config_plugins_deactivate(): bool
 {
     global $mybb, $page;
 
@@ -86,7 +84,7 @@ function admin_config_plugins_deactivate()
         $mybb->get_input('plugin') != 'ougc_fileprofilefields' ||
         !$mybb->get_input('uninstall', MyBB::INPUT_INT)
     ) {
-        return;
+        return false;
     }
 
     if ($mybb->request_method != 'post') {
@@ -98,19 +96,22 @@ function admin_config_plugins_deactivate()
     if ($mybb->get_input('no')) {
         admin_redirect('index.php?module=config-plugins');
     }
+
+    return true;
 }
 
-function admin_config_attachment_types_delete_commit()
+function admin_config_attachment_types_delete_commit(): bool
 {
-    // maybe deactivate file profile fields that use this attach type
+    // todo, aybe deactivate file profile fields that use this attach type
+    return true;
 }
 
-function admin_formcontainer_output_row(&$args)
+function admin_formcontainer_output_row(array &$args): array
 {
     global $lang, $form_container, $form, $mybb, $select_list, $profile_fields, $cache, $input;
 
     if (empty($args['title'])) {
-        return;
+        return $args;
     }
 
     static $profile_fields_cache = null;
@@ -140,6 +141,8 @@ function admin_formcontainer_output_row(&$args)
     if (!empty($args['options']['id']) && !empty($profile_fields_cache[$args['options']['id']])) {
         global $templates;
 
+        load_language();
+
         $pfcache = $cache->read('profilefields');
 
         if (is_array($pfcache)) {
@@ -157,6 +160,8 @@ function admin_formcontainer_output_row(&$args)
                 }
             }
 
+            $preview = '';
+
             if ($profilefield) {
                 $seloptions = [];
 
@@ -165,13 +170,13 @@ function admin_formcontainer_output_row(&$args)
                 $type = $thing[0];
 
                 if ($type != 'file') {
-                    return;
+                    return $args;
                 }
 
-                if (defined('IN_ADMINCP') && $mybb->get_input('action') == 'add') {
+                if ($mybb->get_input('action') == 'add') {
                     $args['options']['style'] = 'display: none !important;';
 
-                    return;
+                    return $args;
                 }
 
                 static $user_fields = null;
@@ -181,6 +186,8 @@ function admin_formcontainer_output_row(&$args)
                 }
 
                 $aid = (int)$user_fields[$field];
+
+                $style = $accepted_formats = $update = $remove = '';
 
                 if ($file = query_file($aid)) {
                     $style = 'none';
@@ -207,6 +214,18 @@ function admin_formcontainer_output_row(&$args)
 
                     $thumbnail = htmlspecialchars_uni($file['thumbnail']);
 
+                    $status = '';
+
+                    if ($file['status'] !== 1) {
+                        $description = $lang->ougc_fileprofilefields_status_notification_onqueue;
+
+                        if ($file['status'] === -1) {
+                            $description = $lang->ougc_fileprofilefields_status_notification_unapproved;
+                        }
+
+                        $status = eval(getTemplate('adminControlPanelStatus'));
+                    }
+
                     if (
                         $file['thumbnail'] &&
                         $profilefield['ougc_fileprofilefields_imageonly'] &&
@@ -222,9 +241,9 @@ function admin_formcontainer_output_row(&$args)
 
                         $height = (int)$dims[1];
 
-                        $preview = eval($templates->render('ougcfileprofilefields_modcp_file_thumbnail'));
+                        $preview = eval(getTemplate('modcp_file_thumbnail'));
                     } else {
-                        $preview = eval($templates->render('ougcfileprofilefields_modcp_file'));
+                        $preview = eval(getTemplate('modcp_file'));
                     }
 
                     $update_aids = array_filter(
@@ -237,7 +256,7 @@ function admin_formcontainer_output_row(&$args)
                         $checked = ' checked="checked"';
                     }
 
-                    $update = eval($templates->render('ougcfileprofilefields_modcp_update'));
+                    $update = eval(getTemplate('modcp_update'));
 
                     $remove_aids = array_filter(
                         array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
@@ -249,17 +268,50 @@ function admin_formcontainer_output_row(&$args)
                         $checked = ' checked="checked"';
                     }
 
-                    $remove = eval($templates->render('ougcfileprofilefields_modcp_remove'));
+                    $remove = eval(getTemplate('modcp_remove'));
                 }
 
-                $code = eval($templates->render('ougcfileprofilefields_modcp'));
+                global $user;
+
+                $attachcache = $mybb->cache->read('attachtypes');
+
+                $exts = $valid_mimes = [];
+
+                foreach ($attachcache as $ext => $attachtype) {
+                    if (
+                        $attachtype['ougc_fileprofilefields'] &&
+                        is_member(
+                            $profilefield['ougc_fileprofilefields_types'],
+                            ['usergroup' => (int)$attachtype['atid'], 'additionalgroups' => '']
+                        ) &&
+                        ($attachtype['groups'] == -1 || is_member($attachtype['groups'], $user))
+                    ) {
+                        $valid_mimes[] = $attachtype['mimetype'];
+
+                        $exts[$ext] = $lang->sprintf(
+                            $lang->ougc_fileprofilefields_info_types_item,
+                            my_strtoupper($ext),
+                            get_friendly_size(
+                                (int)$profilefield['ougc_fileprofilefields_maxsize'] ?: (int)$attachtype['maxsize']
+                            )
+                        );
+                    }
+                }
+
+                if ($exts) {
+                    $allowed_types = implode($lang->comma, array_keys($exts));
+
+                    $accepted_formats = '.' . implode(', .', array_keys($exts)) . ', ' . implode(', ', $valid_mimes);
+                }
+
+                $code = eval(getTemplate('adminControlPanel'));
 
                 $args['content'] = $code;
             }
         }
     }
 
-    if ($args['title'] == $lang->avatar_file) {
+    if (!empty($lang->avatar_file) && $args['title'] == $lang->avatar_file) {
         load_language();
 
         $form_container->output_row(
@@ -273,7 +325,7 @@ function admin_formcontainer_output_row(&$args)
         );
     }
 
-    if ($args['title'] == $lang->field_type . ' <em>*</em>') {
+    if (!empty($lang->field_type) && $args['title'] == $lang->field_type . ' <em>*</em>') {
         load_language();
 
         $select_list['file'] = $lang->ougc_fileprofilefields_profilefields_type;
@@ -286,7 +338,7 @@ function admin_formcontainer_output_row(&$args)
         );
     }
 
-    if ($args['title'] == $lang->show_on_registration . ' <em>*</em>') {
+    if (!empty($lang->show_on_registration) && $args['title'] == $lang->show_on_registration . ' <em>*</em>') {
         load_language();
 
         $attachtypes = $mybb->cache->read('attachtypes');
@@ -461,9 +513,11 @@ function admin_formcontainer_output_row(&$args)
             ['id' => 'row_ougc_fileprofilefields_thumbnailsdimns']
         );
     }
+
+    return $args;
 }
 
-function admin_config_attachment_types_add_commit()
+function admin_config_attachment_types_add_commit(): bool
 {
     global $atid, $db, $mybb;
 
@@ -472,21 +526,25 @@ function admin_config_attachment_types_add_commit()
     $db->update_query('attachtypes', [
         'ougc_fileprofilefields' => $mybb->get_input('ougc_fileprofilefields', MyBB::INPUT_INT)
     ], "atid='{$atid}'");
+
+    return true;
 }
 
-function admin_config_attachment_types_edit_commit()
+function admin_config_attachment_types_edit_commit(): bool
 {
     global $updated_type, $mybb;
 
     $updated_type['ougc_fileprofilefields'] = $mybb->get_input('ougc_fileprofilefields', MyBB::INPUT_INT);
+
+    return true;
 }
 
-function admin_config_profile_fields_add_commit()
+function admin_config_profile_fields_add_commit(): bool
 {
     global $fid, $mybb, $new_profile_field, $db;
 
     if (my_strpos($new_profile_field['type'], 'file') === false) {
-        return;
+        return false;
     }
 
     $fid = (int)$fid;
@@ -513,9 +571,11 @@ function admin_config_profile_fields_add_commit()
     }
 
     $db->update_query('profilefields', $inserted_profile_field, "fid='{$fid}'");
+
+    return true;
 }
 
-function admin_config_profile_fields_edit_commit()
+function admin_config_profile_fields_edit_commit(): bool
 {
     global $mybb, $db, $updated_profile_field, $profile_field;
 
@@ -536,14 +596,16 @@ function admin_config_profile_fields_edit_commit()
         'type' => 'file',
         'registration' => 0
     ], "fid='{$profile_field['fid']}'");
+
+    return true;
 }
 
-function admin_page_output_footer()
+function admin_page_output_footer(): bool
 {
     global $run_module, $page;
 
     if (!($run_module == 'config' && $page->active_action == 'profile_fields')) {
-        return;
+        return false;
     }
 
     echo '
@@ -555,4 +617,6 @@ function admin_page_output_footer()
 				new Peeker($("#row_ougc_fileprofilefields_thumbnails input"), $("#row_ougc_fileprofilefields_thumbnailsdimns"), 1, true);
 		});
 	</script>';
+
+    return true;
 }

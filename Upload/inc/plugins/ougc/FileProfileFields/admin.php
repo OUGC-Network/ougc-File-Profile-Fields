@@ -467,7 +467,7 @@ function _edits_apply($apply = false)
         ],
     ], $apply);
 
-    //TODO, control_object() could take care of thse two hook
+    //TODO, control_object() could take care of these two hook
     $usercp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'usercp.php', [
         'search' => ['if($profilefield[\'required\'] == 1)'],
         'before' => ['$plugins->run_hooks(\'ougc_plugins_customfields_usercp_end\');'],

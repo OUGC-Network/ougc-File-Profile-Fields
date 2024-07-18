@@ -32,29 +32,23 @@ namespace ougc\FileProfileFields\Hooks\Forum;
 
 use MyBB;
 
+use UserDataHandler;
+
 use function ougc\FileProfileFields\Core\build_url;
-
 use function ougc\FileProfileFields\Core\delete_file;
-
 use function ougc\FileProfileFields\Core\get_userfields;
-
 use function ougc\FileProfileFields\Core\load_language;
-
 use function ougc\FileProfileFields\Core\query_file;
-
 use function ougc\FileProfileFields\Core\remove_files;
-
 use function ougc\FileProfileFields\Core\reset_file;
-
 use function ougc\FileProfileFields\Core\set_url;
-
 use function ougc\FileProfileFields\Core\store_file;
-
 use function ougc\FileProfileFields\Core\upload_file;
+use function ougc\FileProfileFields\Core\getTemplate;
 
 use const TIME_NOW;
 
-function global_start09()
+function global_start09(): bool
 {
     global $templatelist, $cache;
 
@@ -65,7 +59,7 @@ function global_start09()
     }
 
     if (!defined('THIS_SCRIPT')) {
-        return;
+        return false;
     }
 
     $load_custom = false;
@@ -103,9 +97,11 @@ function global_start09()
     if (THIS_SCRIPT == 'modcp.php') {
         $templatelist .= 'ougcfileprofilefields_modcp_nav, attachment_icon, ougcfileprofilefields_modcp, ougcfileprofilefields_modcp_file, ougcfileprofilefields_modcp_file_thumbnail, ougcfileprofilefields_modcp_status, ougcfileprofilefields_modcp_status_mod, ougcfileprofilefields_modcp_remove, ougcfileprofilefields_modcp_update, ougcfileprofilefields_modcp_filter_option, ougcinvitesystem_content_multipage, ougcfileprofilefields_modcp_files_file, ougcfileprofilefields_modcp_files, ougcfileprofilefields_modcp_logs_log, ougcfileprofilefields_modcp_logs, ougcfileprofilefields_modcp_page';
     }
+
+    return true;
 }
 
-function datahandler_user_validate(&$dh)
+function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
 {
     global $db, $cache, $mybb, $lang;
     global $ougcFileProfileFieldsObjects;
@@ -200,7 +196,7 @@ function datahandler_user_validate(&$dh)
             }
 
             if ($process_file) {
-                $profilefield !== null || _dump($profilefield);
+                //$profilefield !== null || _dump($profilefield);
                 $ougcFileProfileFieldsObjects[$profilefield['fid']] = upload_file($userID, $profilefield);
 
                 if (!empty($ougcFileProfileFieldsObjects[$profilefield['fid']]['error'])) {
@@ -222,15 +218,15 @@ function datahandler_user_validate(&$dh)
         }
     }
 
-    return true;
+    return $dh;
 }
 
-function datahandler_user_update(&$dh)
+function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
 {
     global $ougcFileProfileFieldsObjects;
 
     if (empty($ougcFileProfileFieldsObjects)) {
-        return;
+        return $dh;
     }
 
     global $db, $plugins, $mybb;
@@ -253,8 +249,8 @@ function datahandler_user_update(&$dh)
             'filesize' => (int)$file['filesize'],
             'filemime' => (string)$file['filemime'],
             'name' => (string)$file['name'],
-            'thumbnail' => (string)$file['thumbnail'],
-            'dimensions' => (string)$file['dimensions'],
+            'thumbnail' => $file['thumbnail'] ?? '',
+            'dimensions' => $file['dimensions'] ?? '',
             'md5hash' => (string)$md5 ?: '',
             'updatedate' => TIME_NOW
         ];
@@ -296,14 +292,16 @@ function datahandler_user_update(&$dh)
             );
         }
     }
+
+    return $dh;
 }
 
-function datahandler_user_delete_start(&$dh)
+function datahandler_user_delete_start(UserDataHandler &$dh): UserDataHandler
 {
     global $db, $cache;
 
     if (!$dh->delete_uids) {
-        return;
+        return $dh;
     }
 
     $pfcache = $cache->read('profilefields');
@@ -327,9 +325,11 @@ function datahandler_user_delete_start(&$dh)
     $db->delete_query('ougc_fileprofilefields_files', "uid IN ('{$delete_uids}')");
 
     $db->delete_query('ougc_fileprofilefields_logs', "uid IN ('{$delete_uids}')");
+
+    return $dh;
 }
 
-function ougc_plugins_customfields_usercp_end80($section = 'usercp', &$args = [])
+function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', array &$args = []): bool
 {
     if (!$section) {
         $section = 'usercp';
@@ -380,8 +380,9 @@ function ougc_plugins_customfields_usercp_end80($section = 'usercp', &$args = []
 
     $field = "fid{$profilefield['fid']}";
 
+    //_dump($profilefield, $preview, $code);
     if ($type != 'file') {
-        return;
+        return false;
     }
 
     $ougc_fileprofilefields[$field] = '';
@@ -436,16 +437,16 @@ function ougc_plugins_customfields_usercp_end80($section = 'usercp', &$args = []
                 }
 
                 if ($ismod) {
-                    $status = eval($templates->render("ougcfileprofilefields_{$section}_status_mod"));
+                    $status = eval(getTemplate("{$section}_status_mod"));
                 } else {
-                    $status = eval($templates->render("ougcfileprofilefields_{$section}_status"));
+                    $status = eval(getTemplate("{$section}_status"));
                 }
             }
 
             if (!$profilefield['ougc_fileprofilefields_customoutput'] && in_array($section, ['postbit'])) {
                 $name = htmlspecialchars_uni($profilefield['name']);
 
-                $preview .= eval($templates->render("ougcfileprofilefields_{$section}"));
+                $preview .= eval(getTemplate("{$section}"));
             }
 
             if (
@@ -465,16 +466,16 @@ function ougc_plugins_customfields_usercp_end80($section = 'usercp', &$args = []
                 if (!defined(
                         'IN_ADMINCP'
                     ) && isset($templates->cache["ougcfileprofilefields_{$section}_file_thumbnail_{$fid}"])) {
-                    $preview .= eval($templates->render("ougcfileprofilefields_{$section}_file_thumbnail_{$fid}"));
+                    $preview .= eval(getTemplate("{$section}_file_thumbnail_{$fid}"));
                 } else {
-                    $preview .= eval($templates->render("ougcfileprofilefields_{$section}_file_thumbnail"));
+                    $preview .= eval(getTemplate("{$section}_file_thumbnail"));
                 }
             } elseif (!defined(
                     'IN_ADMINCP'
                 ) && isset($templates->cache["ougcfileprofilefields_{$section}_file_{$fid}"])) {
-                $preview .= eval($templates->render("ougcfileprofilefields_{$section}_file_{$fid}"));
+                $preview .= eval(getTemplate("{$section}_file_{$fid}"));
             } else {
-                $preview .= eval($templates->render("ougcfileprofilefields_{$section}_file"));
+                $preview .= eval(getTemplate("{$section}_file"));
             }
 
             if (!in_array($section, ['profile', 'postbit'])) {
@@ -488,7 +489,7 @@ function ougc_plugins_customfields_usercp_end80($section = 'usercp', &$args = []
                     $checked = ' checked="checked"';
                 }
 
-                $update = eval($templates->render("ougcfileprofilefields_{$section}_update"));
+                $update = eval(getTemplate("{$section}_update"));
 
                 $remove_aids = array_filter(
                     array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
@@ -500,7 +501,7 @@ function ougc_plugins_customfields_usercp_end80($section = 'usercp', &$args = []
                     $checked = ' checked="checked"';
                 }
 
-                $remove = eval($templates->render("ougcfileprofilefields_{$section}_remove"));
+                $remove = eval(getTemplate("{$section}_remove"));
             }
 
             if (in_array($section, ['profile'])) {
@@ -550,26 +551,34 @@ function ougc_plugins_customfields_usercp_end80($section = 'usercp', &$args = []
 
             $accepted_formats = '.' . implode(', .', array_keys($exts)) . ', ' . implode(', ', $valid_mimes);
 
-            $code = eval($templates->render("ougcfileprofilefields_{$section}"));
+            $code = eval(getTemplate("{$section}"));
         } else {
             $code = $lang->ougc_fileprofilefields_info_unconfigured;
         }
     }
+
+    return true;
 }
 
-function ougc_plugins_customfields_profile_start()
+function ougc_plugins_customfields_profile_start(): bool
 {
     ougc_plugins_customfields_usercp_end80('profile');
+
+    return true;
 }
 
-function ougc_plugins_customfields_postbit_start(&$post)
+function ougc_plugins_customfields_postbit_start(array &$post): array
 {
     ougc_plugins_customfields_usercp_end80('postbit', $post);
+
+    return $post;
 }
 
-function ougc_plugins_customfields_modcp_end()
+function ougc_plugins_customfields_modcp_end(): bool
 {
     ougc_plugins_customfields_usercp_end80('modcp');
+
+    return true;
 }
 
 function modcp_start()
@@ -631,7 +640,7 @@ function modcp_start()
     }
 
     if ($permission) {
-        $nav = eval($templates->render('ougcfileprofilefields_modcp_nav'));
+        $nav = eval(getTemplate('modcp_nav'));
 
         $modcp_nav = str_replace('<!--OUGC_FILEPROFILEFIELDS-->', $nav, $modcp_nav);
 
@@ -798,7 +807,7 @@ function modcp_start()
 
         $name = htmlspecialchars_uni($profilefield['name']);
 
-        $options .= eval($templates->render('ougcfileprofilefields_modcp_filter_option'));
+        $options .= eval(getTemplate('modcp_filter_option'));
     }
 
     $date = htmlspecialchars_uni($filter_options['date']);
@@ -945,17 +954,17 @@ function modcp_start()
                 $mod_profilelink = build_profile_link($mod_username, (int)$file['muid']);
             }
 
-            $files_list .= eval($templates->render('ougcfileprofilefields_modcp_files_file'));
+            $files_list .= eval(getTemplate('modcp_files_file'));
 
             $trow = alt_trow();
         }
     }
 
     if (!$files_list) {
-        $files_list = eval($templates->render('ougcfileprofilefields_modcp_files_empty'));
+        $files_list = eval(getTemplate('modcp_files_empty'));
     }
 
-    $files = eval($templates->render('ougcfileprofilefields_modcp_files'));
+    $files = eval(getTemplate('modcp_files'));
 
     $multipage = '';
 
@@ -1040,19 +1049,19 @@ function modcp_start()
 
             //$ipaddress = my_inet_ntop($db->unescape_binary($log['ipaddress']));
 
-            $logs_list .= eval($templates->render('ougcfileprofilefields_modcp_logs_log'));
+            $logs_list .= eval(getTemplate('modcp_logs_log'));
 
             $trow = alt_trow();
         }
     }
 
     if (!$logs_list) {
-        $logs_list = eval($templates->render('ougcfileprofilefields_modcp_logs_empty'));
+        $logs_list = eval(getTemplate('modcp_logs_empty'));
     }
 
-    $logs = eval($templates->render('ougcfileprofilefields_modcp_logs'));
+    $logs = eval(getTemplate('modcp_logs'));
 
-    $page = eval($templates->render('ougcfileprofilefields_modcp_page'));
+    $page = eval(getTemplate('modcp_page'));
 
     output_page($page);
 

@@ -47,6 +47,13 @@ use const ougc\FileProfileFields\Core\ROOT;
 
 defined('IN_MYBB') || die('This file cannot be accessed directly.');
 
+// You can uncomment the lines below to avoid storing some settings in the DB
+define('ougc\FileProfileFields\Core\SETTINGS', [
+    //'key' => '',
+]);
+
+define('ougc\FileProfileFields\Core\DEBUG', false);
+
 define('ougc\FileProfileFields\Core\ROOT', MYBB_ROOT . 'inc/plugins/ougc/FileProfileFields');
 
 require_once ROOT . '/core.php';
