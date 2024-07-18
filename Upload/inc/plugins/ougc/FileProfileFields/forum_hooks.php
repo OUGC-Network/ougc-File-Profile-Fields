@@ -140,7 +140,7 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
 
             if (!is_member(
                 $profilefield['editableby'],
-                array('usergroup' => $user['usergroup'], 'additionalgroups' => $user['additionalgroups'])
+                get_user($user['uid'])
             )) {
                 continue;
             }
@@ -196,7 +196,6 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
             }
 
             if ($process_file) {
-                //$profilefield !== null || _dump($profilefield);
                 $ougcFileProfileFieldsObjects[$profilefield['fid']] = upload_file($userID, $profilefield);
 
                 if (!empty($ougcFileProfileFieldsObjects[$profilefield['fid']]['error'])) {
@@ -380,7 +379,6 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
 
     $field = "fid{$profilefield['fid']}";
 
-    //_dump($profilefield, $preview, $code);
     if ($type != 'file') {
         return false;
     }
@@ -595,7 +593,11 @@ function modcp_start()
 
     $filter_options = $mybb->get_input('filter', MyBB::INPUT_ARRAY);
 
-    $filter_options['fids'] = array_flip(array_map('intval', (array)$filter_options['fids']));
+    if (isset($filter_options['fids']) && is_array($filter_options['fids'])) {
+        $filter_options['fids'] = array_flip(array_map('intval', $filter_options['fids']));
+    } else {
+        $filter_options['fids'] = [];
+    }
 
     if (isset($filter_options['fids'][-1])) {
         $filter_options['fids'] = [];

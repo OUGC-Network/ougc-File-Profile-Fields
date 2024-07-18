@@ -360,7 +360,6 @@ function upload_file(int $uid, array $profilefield)
 
         if (!is_array($img_dimensions)) {
             delete_uploaded_file("{$uploadpath}/{$filename}");
-            _dump(1);
 
             $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_image_info;
 
@@ -426,7 +425,6 @@ function upload_file(int $uid, array $profilefield)
 
                     if (!is_array($img_dimensions)) {
                         delete_uploaded_file("{$uploadpath}/{$filename}");
-                        _dump(2);
 
                         $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_image_info;
 
@@ -486,7 +484,6 @@ function upload_file(int $uid, array $profilefield)
 
         if (empty($allowed_mime_types[$ret_data['filemime']]) || $img_dimensions[2] != $img_type || !$img_type) {
             delete_uploaded_file("{$uploadpath}/{$filename}");
-            _dump($img_type, $img_dimensions[2] != $img_type, !$img_type);
 
             $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_image_info;
 
@@ -511,13 +508,6 @@ function upload_file(int $uid, array $profilefield)
 
             if (empty($thumbnail['filename'])) {
                 delete_uploaded_file("{$uploadpath}/{$filename}");
-                _dump($thumbnail, [
-                    "{$uploadpath}/{$filename}",
-                    $uploadpath,
-                    str_replace('.attach', "_thumb.{$file_ext}", $filename),
-                    $dims[1],
-                    $dims[0]
-                ]);
 
                 $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_thumbnail_creation;
 
@@ -530,7 +520,6 @@ function upload_file(int $uid, array $profilefield)
 
             if (!is_array($thumbnail_dimensions)) {
                 delete_uploaded_file("{$uploadpath}/{$filename}");
-                _dump(4);
 
                 $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_image_info;
 
