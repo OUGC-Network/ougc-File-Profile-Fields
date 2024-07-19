@@ -84,7 +84,7 @@ function global_start09(): bool
                 if (my_strpos($profilefield['type'], 'file') !== false) {
                     $fid = (int)$profilefield['fid'];
 
-                    $templatelist .= ", ougcfileprofilefields_{$load_custom}_file_{$fid}, ougcfileprofilefields_{$load_custom}_file_thumbnail_{$fid}";
+                    $templatelist .= ", ougcfileprofilefields_{$load_custom}_file_{$fid}, ougcfileprofilefields_{$load_custom}_file_thumbnail_{$fid}, ougcfileprofilefields_{$load_custom}_status_{$fid}, ougcfileprofilefields_{$load_custom}_status_mod_{$fid}";
                 }
             }
         }
@@ -335,11 +335,9 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
     }
 
     global $mybb, $user_fields, $customfield, $maxlength, $code, $templates, $lang, $ougc_fileprofilefields, $profilefields;
-    global $field;
+    global $field, $ougcProfileFieldsCategoriesCurrentID, $ougcProfileFieldsCategoriesProfileContents;
 
     isset($ougc_fileprofilefields) || $ougc_fileprofilefields = [];
-
-    $aid = (int)$mybb->user[$field];
 
     $preview = $remove = $update = $status = '';
 
@@ -350,6 +348,7 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
 
         if (isset($profilefields)) {
             $preview = &$profilefields;
+        } elseif (isset($ougcProfileFieldsCategoriesProfileContents)) {
         } else {
             $preview = &$args['post']['profilefield'];
         }
@@ -375,6 +374,8 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
         }
     }
 
+    $aid = isset($user[$field]) ? (int)$user[$field] : 0;
+
     $fid = (int)$profilefield['fid'];
 
     $field = "fid{$profilefield['fid']}";
@@ -388,8 +389,6 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
     if ($profilefield['ougc_fileprofilefields_customoutput']) {
         $preview = &$ougc_fileprofilefields[$field];
     }
-
-    $aid = (int)$user[$field];
 
     $style = 'inherit';
 
@@ -435,7 +434,21 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
                 }
 
                 if ($ismod) {
-                    $status = eval(getTemplate("{$section}_status_mod"));
+                    if (!empty($ougcProfileFieldsCategoriesCurrentID) && isset($templates->cache["ougcfileprofilefields_{$section}_status_mod_category{$ougcProfileFieldsCategoriesCurrentID}"])) {
+                        $status = eval(
+                        getTemplate(
+                            "{$section}_status_mod_category{$ougcProfileFieldsCategoriesCurrentID}"
+                        )
+                        );
+                    } elseif (isset($templates->cache["ougcfileprofilefields_{$section}_status_mod_{$fid}"])) {
+                        $status = eval(getTemplate("{$section}_status_mod_{$fid}"));
+                    } else {
+                        $status = eval(getTemplate("{$section}_status_mod"));
+                    }
+                } elseif (!empty($ougcProfileFieldsCategoriesCurrentID) && isset($templates->cache["ougcfileprofilefields_{$section}_status_category{$ougcProfileFieldsCategoriesCurrentID}"])) {
+                    $status = eval(getTemplate("{$section}_status_category{$ougcProfileFieldsCategoriesCurrentID}"));
+                } elseif (isset($templates->cache["ougcfileprofilefields_{$section}_status_{$fid}"])) {
+                    $status = eval(getTemplate("{$section}_status_{$fid}"));
                 } else {
                     $status = eval(getTemplate("{$section}_status"));
                 }
@@ -461,13 +474,21 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
 
                 $maximum_height = explode('|', $profilefield['ougc_fileprofilefields_thumbnailsdimns'])[1];
 
-                if (!defined(
+                if (!empty($ougcProfileFieldsCategoriesCurrentID) && isset($templates->cache["ougcfileprofilefields_{$section}_file_thumbnail_category{$ougcProfileFieldsCategoriesCurrentID}"])) {
+                    $preview .= eval(
+                    getTemplate(
+                        "{$section}_file_thumbnail_category{$ougcProfileFieldsCategoriesCurrentID}"
+                    )
+                    );
+                } elseif (!defined(
                         'IN_ADMINCP'
                     ) && isset($templates->cache["ougcfileprofilefields_{$section}_file_thumbnail_{$fid}"])) {
                     $preview .= eval(getTemplate("{$section}_file_thumbnail_{$fid}"));
                 } else {
                     $preview .= eval(getTemplate("{$section}_file_thumbnail"));
                 }
+            } elseif (!empty($ougcProfileFieldsCategoriesCurrentID) && isset($templates->cache["ougcfileprofilefields_{$section}_file_category{$ougcProfileFieldsCategoriesCurrentID}"])) {
+                $preview .= eval(getTemplate("{$section}_file_category{$ougcProfileFieldsCategoriesCurrentID}"));
             } elseif (!defined(
                     'IN_ADMINCP'
                 ) && isset($templates->cache["ougcfileprofilefields_{$section}_file_{$fid}"])) {
