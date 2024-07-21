@@ -613,6 +613,8 @@ function modcp_start()
 
     $permission = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
 
+    $errors = '';
+
     $uid = 0;
 
     $filter_options = $mybb->get_input('filter', MyBB::INPUT_ARRAY);
@@ -622,6 +624,8 @@ function modcp_start()
     } else {
         $filter_options['fids'] = [];
     }
+
+    $selected_fields = ['all' => ''];
 
     if (isset($filter_options['fids'][-1])) {
         $filter_options['fids'] = [];
@@ -637,7 +641,7 @@ function modcp_start()
         }
 
         $mybb->input['username'] = $user['username'];
-    } elseif ($filter_options['uid'] || $filter_options['username']) {
+    } elseif (!empty($filter_options['uid']) || !empty($filter_options['username'])) {
         if ((int)$filter_options['uid']) {
             $user = get_user((int)$filter_options['uid']);
         } else {
@@ -701,7 +705,7 @@ function modcp_start()
         $where['fids'] = "a.fid IN ('{$keys}')";
     }
 
-    if ($filter_options['date'] && $filter_options['time']) {
+    if (!empty($filter_options['date']) && !empty($filter_options['time'])) {
         $date = (array)explode('-', $filter_options['date']);
 
         $time = (array)explode(':', $filter_options['time']);
@@ -717,7 +721,7 @@ function modcp_start()
         $build_url['filter[time]'] = $filter_options['time'];
     }
 
-    if ($filter_options['status']) {
+    if (isset($filter_options['status'])) {
         (int)$status = $filter_options['status'];
 
         $where[] = "a.status='{$status}'";
@@ -725,7 +729,7 @@ function modcp_start()
         $build_url['filter[status]'] = $status;
     }
 
-    if ($filter_options['perpage']) {
+    if (!empty($filter_options['perpage'])) {
         $build_url['filter[perpage]'] = $perpage = (int)$filter_options['perpage'];
     }
 
@@ -735,16 +739,16 @@ function modcp_start()
 
     $order_dir = 'desc';
 
-    if (in_array($filter_options['order_by'], ['username'])) {
+    if (!empty($filter_options['order_by']) && in_array($filter_options['order_by'], ['username'])) {
         $order_by = "u.{$filter_options['order_by']}";
 
         $build_url['filter[order_by]'] = $filter_options['order_by'];
     }
 
-    if (in_array(
-        $filter_options['order_by'],
-        ['filemime', 'filename', 'filesize', 'downloads', 'uploaddate', 'updatedate']
-    )) {
+    if (!empty($filter_options['order_by']) && in_array(
+            $filter_options['order_by'],
+            ['filemime', 'filename', 'filesize', 'downloads', 'uploaddate', 'updatedate']
+        )) {
         $order_by = "a.{$filter_options['order_by']}";
 
         if ($filter_options['order_by'] == 'uploaddate') {
@@ -754,13 +758,13 @@ function modcp_start()
         $build_url['filter[order_by]'] = $filter_options['order_by'];
     }
 
-    if ($filter_options['order_dir'] == 'asc') {
+    if (!empty($filter_options['order_dir']) && $filter_options['order_dir'] == 'asc') {
         $order_dir = 'asc';
 
         $build_url['filter[order_dir]'] = $filter_options['order_by'];
     }
 
-    if (!$filter_options['order_dir']) {
+    if (empty($filter_options['order_dir'])) {
         $selected_order_dir['desc'] = ' selected="selected"';
     }
 
@@ -836,9 +840,9 @@ function modcp_start()
         $options .= eval(getTemplate('modcp_filter_option'));
     }
 
-    $date = htmlspecialchars_uni($filter_options['date']);
+    $date = isset($filter_options['date']) ? htmlspecialchars_uni($filter_options['date']) : '';
 
-    $time = htmlspecialchars_uni($filter_options['time']);
+    $time = isset($filter_options['time']) ? htmlspecialchars_uni($filter_options['time']) : '';
 
     $selected_status = [
         0 => '',
@@ -846,17 +850,23 @@ function modcp_start()
         2 => '',
     ];
 
-    $selected_status[(int)$filter_options['status']] = ' checked="checked"';
+    if (isset($filter_options['status'])) {
+        $selected_status[(int)$filter_options['status']] = ' checked="checked"';
+    }
 
     foreach (['username', 'filemime', 'filename', 'filesize', 'downloads', 'uploaddate', 'updatedate'] as $key) {
-        if ($filter_options['order_by'] == $key) {
+        if (!empty($filter_options['order_by']) && $filter_options['order_by'] == $key) {
             $selected_order_by[$key] = ' selected="selected"';
+        } else {
+            $selected_order_by[$key] = '';
         }
     }
 
     foreach (['asc', 'desc'] as $key) {
-        if ($filter_options['order_dir'] == $key) {
+        if (!empty($filter_options['order_dir']) && $filter_options['order_dir'] == $key) {
             $selected_order_dir[$key] = ' selected="selected"';
+        } else {
+            $selected_order_dir[$key] = '';
         }
     }
 
@@ -955,7 +965,9 @@ function modcp_start()
 
             $icon = get_attachment_icon($ext);
 
-            $field = htmlspecialchars_uni($profilefields_cache[$file['fid']]['name']);
+            $field = isset($profilefields_cache[$file['fid']]) ? htmlspecialchars_uni(
+                $profilefields_cache[$file['fid']]['name']
+            ) : '';
 
             switch ($file['status']) {
                 case -1:
@@ -1036,7 +1048,7 @@ function modcp_start()
 
         $query = $db->simple_select(
             "ougc_fileprofilefields_logs l LEFT JOIN {$db->table_prefix}ougc_fileprofilefields_files a ON (a.aid=l.aid) LEFT JOIN {$db->table_prefix}users u ON (l.uid=u.uid)",
-            'l.*, a.filename, a.filesize, u.username, u.usergroup, u.displaygroup',
+            'l.lid, l.uid, l.aid, l.ipaddress, l.dateline, a.filename, a.filesize, u.username, u.usergroup, u.displaygroup',
             implode(' AND ', array_merge($where, $where2)),
             [
                 'limit' => $perpage,
@@ -1049,7 +1061,7 @@ function modcp_start()
         $trow = alt_trow(true);
 
         while ($log = $db->fetch_array($query)) {
-            foreach (['aid', 'uid', 'fid', 'filesize', 'dateline'] as $key) {
+            foreach (['aid', 'uid', 'filesize', 'dateline'] as $key) {
                 $log[$key] = (int)$log[$key];
             }
 
@@ -1067,7 +1079,7 @@ function modcp_start()
 
             $username = format_name($username, $log['usergroup'], $log['displaygroup']);
 
-            $profilelink = build_profile_link($username, $file['uid']);
+            $profilelink = build_profile_link($username, $log['uid']);
 
             $ext = get_extension(my_strtolower($log['filename']));
 

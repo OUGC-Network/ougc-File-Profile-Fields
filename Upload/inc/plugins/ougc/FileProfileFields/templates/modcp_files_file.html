@@ -1,21 +1,23 @@
 <tr valign="top">
-	<td class="{$trow} {$status_class}">{$profilelink}</td>
-	<td class="{$trow} {$status_class}">
-		{$icon}
-		<a href="{$mybb->settings['bburl']}/ougc_fileprofilefields.php?aid={$file['aid']}" target="_blank">
-			{$filename}
-		</a>
-		<div class="smalltext">
-			{$lang->ougc_fileprofilefields_md5}: {$md5hash}<br />
-			{$lang->ougc_fileprofilefields_mime}: {$mime}<br />
-			{$lang->ougc_fileprofilefields_filesize}: {$filesize}
-		</div>
-	</td>
-	<td class="{$trow} {$status_class}" align="center">{$field}</td>
-	<td class="{$trow} {$status_class}" align="center">{$downloads}</td>
-	<td class="{$trow} {$status_class}" align="center">{$uploaddate}</td>
-	<td class="{$trow} {$status_class}" align="center">{$updatedate}</td>
-	<td class="{$trow} {$status_class}" align="center">{$status}</td>
-	<td class="{$trow} {$status_class}" align="center">{$mod_profilelink}</td>
-	<td class="{$trow} {$status_class}" width="1" align="center"><input type="checkbox" class="checkbox" name="check[{$file['aid']}]" value="{$file['aid']}" /></td>
+    <td class="{$trow} {$status_class}">{$profilelink}</td>
+    <td class="{$trow} {$status_class}">
+        {$icon}
+        <a href="{$mybb->settings['bburl']}/ougc_fileprofilefields.php?aid={$file['aid']}" target="_blank">
+            {$filename}
+        </a>
+        <div class="smalltext">
+            {$lang->ougc_fileprofilefields_md5}: {$md5hash}<br/>
+            {$lang->ougc_fileprofilefields_mime}: {$filemime}<br/>
+            {$lang->ougc_fileprofilefields_filesize}: {$filesize}
+        </div>
+    </td>
+    <td class="{$trow} {$status_class}" align="center">{$field}</td>
+    <td class="{$trow} {$status_class}" align="center">{$downloads}</td>
+    <td class="{$trow} {$status_class}" align="center">{$uploaddate}</td>
+    <td class="{$trow} {$status_class}" align="center">{$updatedate}</td>
+    <td class="{$trow} {$status_class}" align="center">{$status}</td>
+    <td class="{$trow} {$status_class}" align="center">{$mod_profilelink}</td>
+    <td class="{$trow} {$status_class}" width="1" align="center"><input type="checkbox" class="checkbox"
+                                                                        name="check[{$file['aid']}]"
+                                                                        value="{$file['aid']}"/></td>
 </tr>
