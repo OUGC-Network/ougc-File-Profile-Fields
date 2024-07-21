@@ -30,6 +30,8 @@ declare(strict_types=1);
 
 namespace ougc\FileProfileFields\Core;
 
+use OUGC_ProfiecatsCache;
+
 use function delete_uploaded_file;
 
 use function generate_thumbnail;
@@ -652,6 +654,18 @@ function get_userfields(int $uid)
     }
 
     return $user_cache[$uid];
+}
+
+function getProfileFieldsCache(): array
+{
+    global $mybb;
+    global $profiecats;
+
+    if (class_exists('OUGC_ProfiecatsCache') && $profiecats instanceof OUGC_ProfiecatsCache) {
+        return $profiecats->cache['original'];
+    }
+
+    return (array)$mybb->cache->read('profilefields');
 }
 
 function customTemplateIsSet(string $templateName): bool

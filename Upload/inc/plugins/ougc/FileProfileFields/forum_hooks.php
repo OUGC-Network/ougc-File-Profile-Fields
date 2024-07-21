@@ -34,6 +34,7 @@ use MyBB;
 
 use UserDataHandler;
 
+use function ougc\FileProfileFields\Core\getProfileFieldsCache;
 use function ougc\FileProfileFields\Core\urlHandlerBuild;
 use function ougc\FileProfileFields\Core\delete_file;
 use function ougc\FileProfileFields\Core\get_userfields;
@@ -80,9 +81,9 @@ function global_start09(): bool
     }
 
     if ($load_custom) {
-        $pfcache = $cache->read('profilefields');
+        $pfcache = getProfileFieldsCache();
 
-        if (is_array($pfcache)) {
+        if ($pfcache) {
             foreach ($pfcache as $profilefield) {
                 if (my_strpos($profilefield['type'], 'file') !== false) {
                     $fieldID = (int)$profilefield['fid'];
@@ -100,7 +101,7 @@ function global_start09(): bool
     }
 
     if (THIS_SCRIPT == 'modcp.php') {
-        $templatelist .= 'ougcfileprofilefields_modcp_nav, attachment_icon, ougcfileprofilefields_modcp, ougcfileprofilefields_modcp_file, ougcfileprofilefields_modcp_file_thumbnail, ougcfileprofilefields_modcp_status, ougcfileprofilefields_modcp_status_mod, ougcfileprofilefields_modcp_remove, ougcfileprofilefields_modcp_update, ougcfileprofilefields_modcp_filter_option, ougcinvitesystem_content_multipage, ougcfileprofilefields_modcp_files_file, ougcfileprofilefields_modcp_files, ougcfileprofilefields_modcp_logs_log, ougcfileprofilefields_modcp_logs, ougcfileprofilefields_modcp_page';
+        $templatelist .= 'ougcfileprofilefields_modcp_nav, attachment_icon, ougcfileprofilefields_modcp, ougcfileprofilefields_modcp_file, ougcfileprofilefields_modcp_file_thumbnail, ougcfileprofilefields_modcp_status, ougcfileprofilefields_modcp_status_mod, ougcfileprofilefields_modcp_remove, ougcfileprofilefields_modcp_update, ougcfileprofilefields_modcp_filter_option, ougcfileprofilefields_modcp_multipage, ougcfileprofilefields_modcp_files_file, ougcfileprofilefields_modcp_files, ougcfileprofilefields_modcp_logs_log, ougcfileprofilefields_modcp_logs, ougcfileprofilefields_modcp_page';
     }
 
     return true;
@@ -124,9 +125,9 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
     // Loop through profile fields checking if they exist or not and are filled in.
 
     // Fetch all profile fields first.
-    $pfcache = $cache->read('profilefields');
+    $pfcache = getProfileFieldsCache();
 
-    if (is_array($pfcache)) {
+    if ($pfcache) {
         $remove_aids = array_filter(
             array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
         );
@@ -308,7 +309,7 @@ function datahandler_user_delete_start(UserDataHandler &$dh): UserDataHandler
         return $dh;
     }
 
-    $pfcache = $cache->read('profilefields');
+    $pfcache = getProfileFieldsCache();
 
     $profilefields_cache = [];
 
@@ -642,7 +643,7 @@ function modcp_start()
 
         $mybb->input['username'] = $user['username'];
     } elseif (!empty($filter_options['uid']) || !empty($filter_options['username'])) {
-        if ((int)$filter_options['uid']) {
+        if (!empty($filter_options['uid'])) {
             $user = get_user((int)$filter_options['uid']);
         } else {
             $user = get_user_by_username($filter_options['username']);
@@ -772,16 +773,16 @@ function modcp_start()
         $perpage = 10;
     }
 
+    global $profiecats;
+
     $profilefields_cache = [];
 
-    $pfcache = $cache->read('profilefields');
+    $pfcache = getProfileFieldsCache();
 
     foreach ($pfcache as $profilefield) {
-        if (my_strpos($profilefield['type'], 'file') === false) {
-            continue;
+        if (my_strpos($profilefield['type'], 'file') !== false) {
+            $profilefields_cache[$profilefield['fid']] = $profilefield;
         }
-
-        $profilefields_cache[$profilefield['fid']] = $profilefield;
     }
 
     add_breadcrumb($lang->nav_modcp, 'modcp.php');
@@ -907,7 +908,7 @@ function modcp_start()
 
         $multipage = (string)multipage($total_files, $perpage, $page, urlHandlerBuild($build_url));
 
-        $multipage = eval($templates->render('ougcinvitesystem_content_multipage'));
+        $multipage = eval(getTemplate('modcp_multipage'));
 
         $query = $db->simple_select(
             "ougc_fileprofilefields_files a LEFT JOIN {$db->table_prefix}users u ON (a.uid=u.uid) LEFT JOIN {$db->table_prefix}users m ON (a.muid=m.uid)",
@@ -1007,7 +1008,7 @@ function modcp_start()
     $multipage = '';
 
     // reset unwanted clauses
-    unset($where['date'], $where['uid']);
+    //unset($where['date'], $where['uid']);
 
     if ($uid) {
         $where['uid'] = "l.uid='{$uid}'";
@@ -1044,7 +1045,7 @@ function modcp_start()
 
         $multipage = (string)multipage($total_logs, $perpage, $page, urlHandlerBuild($build_url));
 
-        $multipage = eval($templates->render('ougcinvitesystem_content_multipage'));
+        $multipage = eval(getTemplate('modcp_multipage'));
 
         $query = $db->simple_select(
             "ougc_fileprofilefields_logs l LEFT JOIN {$db->table_prefix}ougc_fileprofilefields_files a ON (a.aid=l.aid) LEFT JOIN {$db->table_prefix}users u ON (l.uid=u.uid)",
