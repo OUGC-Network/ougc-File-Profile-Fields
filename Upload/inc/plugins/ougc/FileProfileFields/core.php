@@ -658,13 +658,24 @@ function customTemplateIsSet(string $templateName): bool
 {
     global $templates;
 
+    if (DEBUG) {
+        $filePath = ROOT . "/templates/{$templateName}.html";
+
+        if (file_exists($filePath)) {
+            $templateContents = file_get_contents($filePath);
+
+            $templates->cache["ougcfileprofilefields_{$templateName}"] = $templateContents;
+        }
+    }
+
     return isset($templates->cache["ougcfileprofilefields_{$templateName}"]);
 }
 
 function renderUserFile(
     array $fileData,
     array $profileFieldData,
-    string $templateSection = TEMPLATE_SECTION_MEMBER_LIST
+    string $templateSection = TEMPLATE_SECTION_MEMBER_LIST,
+    int $categoryID = 0
 ): string {
     global $mybb;
 
@@ -704,12 +715,6 @@ function renderUserFile(
 
     $statusCode = '';
 
-    global $ougcProfileFieldsCategoriesCurrentID;
-
-    if (!isset($ougcProfileFieldsCategoriesCurrentID)) {
-        $ougcProfileFieldsCategoriesCurrentID = 0;
-    }
-
     if ($fileStatus !== FILE_STATUS_APPROVED) {
         $statusDescription = $lang->ougc_fileprofilefields_status_notification_unapproved;
 
@@ -723,22 +728,16 @@ function renderUserFile(
             $statusDescription = $lang->ougc_fileprofilefields_status_notification_onqueue;
         }
 
-        if ($isModerator && customTemplateIsSet(
-                "{$templateSection}StatusModeratorCategory{$ougcProfileFieldsCategoriesCurrentID}"
-            )) {
-            $statusCode = eval(
-            getTemplate(
-                "{$templateSection}StatusModeratorCategory{$ougcProfileFieldsCategoriesCurrentID}"
-            )
-            );
+        if ($isModerator && customTemplateIsSet("{$templateSection}StatusModeratorCategory{$categoryID}")) {
+            $statusCode = eval(getTemplate("{$templateSection}StatusModeratorCategory{$categoryID}"));
         } elseif ($isModerator && customTemplateIsSet("{$templateSection}StatusModeratorField{$profileFieldID}")) {
             $statusCode = eval(getTemplate("{$templateSection}StatusModeratorField{$profileFieldID}"));
         } elseif ($isModerator) {
             $statusCode = eval(getTemplate("{$templateSection}StatusModerator"));
-        } elseif (customTemplateIsSet("{$templateSection}StatusCategory{$ougcProfileFieldsCategoriesCurrentID}")) {
+        } elseif (customTemplateIsSet("{$templateSection}StatusCategory{$categoryID}")) {
             $statusCode = eval(
             getTemplate(
-                "{$templateSection}StatusCategory{$ougcProfileFieldsCategoriesCurrentID}"
+                "{$templateSection}StatusCategory{$categoryID}"
             )
             );
         } elseif (customTemplateIsSet("{$templateSection}StatusField{$profileFieldID}")) {
@@ -761,15 +760,15 @@ function renderUserFile(
 
         $thumbnailHeight = $thumbnailDimensions[1] ?? 0;
 
-        if (customTemplateIsSet("{$templateSection}FileThumbnailCategory{$ougcProfileFieldsCategoriesCurrentID}")) {
-            return eval(getTemplate("{$templateSection}FileThumbnailCategory{$ougcProfileFieldsCategoriesCurrentID}"));
+        if (customTemplateIsSet("{$templateSection}FileThumbnailCategory{$categoryID}")) {
+            return eval(getTemplate("{$templateSection}FileThumbnailCategory{$categoryID}"));
         } elseif (customTemplateIsSet("{$templateSection}FileThumbnailField{$profileFieldID}")) {
             return eval(getTemplate("{$templateSection}FileThumbnailField{$profileFieldID}"));
         } else {
             return eval(getTemplate("{$templateSection}FileThumbnail"));
         }
-    } elseif (customTemplateIsSet("{$templateSection}FileCategory{$ougcProfileFieldsCategoriesCurrentID}")) {
-        return eval(getTemplate("{$templateSection}FileCategory{$ougcProfileFieldsCategoriesCurrentID}"));
+    } elseif (customTemplateIsSet("{$templateSection}FileCategory{$categoryID}")) {
+        return eval(getTemplate("{$templateSection}FileCategory{$categoryID}"));
     } elseif (customTemplateIsSet("{$templateSection}FileField{$profileFieldID}")) {
         return eval(getTemplate("{$templateSection}FileField{$profileFieldID}"));
     } else {

@@ -48,6 +48,7 @@ use function ougc\FileProfileFields\Core\store_file;
 use function ougc\FileProfileFields\Core\upload_file;
 use function ougc\FileProfileFields\Core\getTemplate;
 
+use const ougc\FileProfileFields\Core\TEMPLATE_SECTION_MEMBER_LIST;
 use const TIME_NOW;
 
 function global_start09(): bool
@@ -1143,9 +1144,13 @@ function ougc_profile_fields_categories_build_fields_categories_end(array &$plug
         return $pluginArguments;
     }
 
+    $categoryID = (int)$pluginArguments['categoryData']['cid'];
+
     $userFile = renderUserFile(
         $fileProfileFieldsCachedUsersData[$userID][$attachmentID],
-        $pluginArguments['profileFieldData']
+        $pluginArguments['profileFieldData'],
+        TEMPLATE_SECTION_MEMBER_LIST,
+        $categoryID
     );
 
     if (!empty($userFile)) {

@@ -333,7 +333,7 @@ function admin_formcontainer_output_row(array &$args): array
         $args['content'] = $form->generate_select_box(
             'fieldtype',
             $select_list,
-            $mybb->input['fieldtype'],
+            $mybb->get_input('fieldtype'),
             array('id' => 'fieldtype')
         );
     }
@@ -566,7 +566,7 @@ function admin_config_profile_fields_add_commit(): bool
 
     foreach (_db_columns()['profilefields'] as $key => $val) {
         if (isset($mybb->input[$key])) {
-            $inserted_profile_field[$key] = $db->escape_string($mybb->input[$key]);
+            $inserted_profile_field[$key] = $db->escape_string($mybb->get_input($key));
         }
     }
 
@@ -588,7 +588,7 @@ function admin_config_profile_fields_edit_commit(): bool
 
     foreach (_db_columns()['profilefields'] as $key => $val) {
         if (isset($mybb->input[$key])) {
-            $updated_profile_field[$key] = $db->escape_string($mybb->input[$key]);
+            $updated_profile_field[$key] = $db->escape_string($mybb->get_input($key));
         }
     }
 
