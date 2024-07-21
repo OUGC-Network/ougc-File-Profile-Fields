@@ -107,6 +107,6 @@ $l = [
     'ougc_fileprofilefields_info_types' => 'Allowed file types',
     'ougc_fileprofilefields_info_types_item' => '{1} ({2})',
     'ougc_fileprofilefields_info_unconfigured' => 'This field does not have any valid file type.',
-    'ougc_fileprofilefields_status_notification_onqueue' => 'This file is currently waiting for approval.',
-    'ougc_fileprofilefields_status_notification_unapproved' => 'This file was marked as unapproved.',
+    'ougc_fileprofilefields_status_notification_onqueue' => 'This file is on queue approval.',
+    'ougc_fileprofilefields_status_notification_unapproved' => 'This file is unapproved.',
 ];

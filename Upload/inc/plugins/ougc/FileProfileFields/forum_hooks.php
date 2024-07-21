@@ -34,14 +34,16 @@ use MyBB;
 
 use UserDataHandler;
 
-use function ougc\FileProfileFields\Core\build_url;
+use function ougc\FileProfileFields\Core\urlHandlerBuild;
 use function ougc\FileProfileFields\Core\delete_file;
 use function ougc\FileProfileFields\Core\get_userfields;
 use function ougc\FileProfileFields\Core\load_language;
 use function ougc\FileProfileFields\Core\query_file;
+use function ougc\FileProfileFields\Core\queryFilesMultiple;
 use function ougc\FileProfileFields\Core\remove_files;
+use function ougc\FileProfileFields\Core\renderUserFile;
 use function ougc\FileProfileFields\Core\reset_file;
-use function ougc\FileProfileFields\Core\set_url;
+use function ougc\FileProfileFields\Core\urlHandlerSet;
 use function ougc\FileProfileFields\Core\store_file;
 use function ougc\FileProfileFields\Core\upload_file;
 use function ougc\FileProfileFields\Core\getTemplate;
@@ -82,9 +84,11 @@ function global_start09(): bool
         if (is_array($pfcache)) {
             foreach ($pfcache as $profilefield) {
                 if (my_strpos($profilefield['type'], 'file') !== false) {
-                    $fid = (int)$profilefield['fid'];
+                    $fieldID = (int)$profilefield['fid'];
 
-                    $templatelist .= ", ougcfileprofilefields_{$load_custom}_file_{$fid}, ougcfileprofilefields_{$load_custom}_file_thumbnail_{$fid}, ougcfileprofilefields_{$load_custom}_status_{$fid}, ougcfileprofilefields_{$load_custom}_status_mod_{$fid}";
+                    $templatelist .= ", ougcfileprofilefields_{$load_custom}_file_{$fieldID}, ougcfileprofilefields_{$load_custom}_file_thumbnail_{$fieldID}, ougcfileprofilefields_{$load_custom}_status_{$fieldID}, ougcfileprofilefields_{$load_custom}_status_mod_{$fieldID}";
+
+                    $templatelist .= ", ougcfileprofilefields_memberListStatusModeratorField{$fieldID}, ougcfileprofilefields_memberListStatusField{$fieldID}, ougcfileprofilefields_memberListFileField{$fieldID}, ougcfileprofilefields_memberListFileThumbnailField{$fieldID}";
                 }
             }
         }
@@ -606,8 +610,6 @@ function modcp_start()
 
     load_language();
 
-    set_url('modcp.php');
-
     $permission = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
 
     $uid = 0;
@@ -652,9 +654,9 @@ function modcp_start()
 
     $build_url = [];
 
-    set_url(build_url(['action' => 'ougc_fileprofilefields']));
+    urlHandlerSet(urlHandlerBuild(['action' => 'ougc_fileprofilefields']));
 
-    $url = build_url();
+    $url = urlHandlerBuild();
 
     $where = $where2 = [];
 
@@ -791,7 +793,7 @@ function modcp_start()
                 "aid IN ('{$ids}')"
             );
 
-            redirect(build_url($build_url), $lang->ougc_fileprofilefields_redirect_approved);
+            redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_approved);
         }
 
         if ($mybb->get_input('do') == 'files' && $mybb->get_input('unapprove')) {
@@ -801,13 +803,13 @@ function modcp_start()
                 "aid IN ('{$ids}')"
             );
 
-            redirect(build_url($build_url), $lang->ougc_fileprofilefields_redirect_unapproved);
+            redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_unapproved);
         }
 
         if ($mybb->get_input('do') == 'logs' && $mybb->get_input('delete')) {
             $db->delete_query('ougc_fileprofilefields_logs', "lid IN ('{$ids}')");
 
-            redirect(build_url($build_url), $lang->ougc_fileprofilefields_redirect_deleted);
+            redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_deleted);
         }
 
         error_no_permission();
@@ -871,7 +873,7 @@ function modcp_start()
 
     $files_list = $logs_list = $multipage = '';
 
-    $form_url = build_url($build_url);
+    $form_url = urlHandlerBuild($build_url);
 
     if ($total_files) {
         $page = $mybb->get_input('page', MyBB::INPUT_INT);
@@ -892,7 +894,7 @@ function modcp_start()
             $page = 1;
         }
 
-        $multipage = (string)multipage($total_files, $perpage, $page, build_url($build_url));
+        $multipage = (string)multipage($total_files, $perpage, $page, urlHandlerBuild($build_url));
 
         $multipage = eval($templates->render('ougcinvitesystem_content_multipage'));
 
@@ -1027,7 +1029,7 @@ function modcp_start()
             $page = 1;
         }
 
-        $multipage = (string)multipage($total_logs, $perpage, $page, build_url($build_url));
+        $multipage = (string)multipage($total_logs, $perpage, $page, urlHandlerBuild($build_url));
 
         $multipage = eval($templates->render('ougcinvitesystem_content_multipage'));
 
@@ -1089,4 +1091,66 @@ function modcp_start()
     output_page($page);
 
     exit;
+}
+
+function memberlist_user(array $userData): array
+{
+    global $fileProfileFieldsCachedUsersData;
+
+    if (!isset($fileProfileFieldsCachedUsersData)) {
+        $fileProfileFieldsCachedUsersData = [];
+    }
+
+    $userID = (int)$userData['uid'];
+
+    if (isset($fileProfileFieldsCachedUsersData[$userID])) {
+        return $userData;
+    }
+
+    foreach ($userData as $userDataFieldKey => $userDataFieldValue) {
+        $attachmentID = (int)$userDataFieldValue;
+
+        if (mb_strpos($userDataFieldKey, 'fid') === 0 && !empty($attachmentID)) {
+            $attachmentIDs[] = $attachmentID;
+        }
+    }
+
+    if (!empty($attachmentIDs)) {
+        $attachmentIDs = implode("','", $attachmentIDs);
+
+        $fileProfileFieldsCachedUsersData[$userID] = queryFilesMultiple(
+            ["uid='{$userID}'", "aid IN ('{$attachmentIDs}')"]
+        );
+    }
+
+    return $userData;
+    // todo, handle non-category profile fields
+}
+
+function ougc_profile_fields_categories_build_fields_categories_end(array &$pluginArguments): array
+{
+    if ($pluginArguments['fieldType'] !== 'file') {
+        return $pluginArguments;
+    }
+
+    global $fileProfileFieldsCachedUsersData;
+
+    $userID = (int)$pluginArguments['userData']['uid'];
+
+    $attachmentID = is_numeric($pluginArguments['userFieldValue']) ? (int)$pluginArguments['userFieldValue'] : 0;
+
+    if (empty($fileProfileFieldsCachedUsersData[$userID]) || empty($fileProfileFieldsCachedUsersData[$userID][$attachmentID])) {
+        return $pluginArguments;
+    }
+
+    $userFile = renderUserFile(
+        $fileProfileFieldsCachedUsersData[$userID][$attachmentID],
+        $pluginArguments['profileFieldData']
+    );
+
+    if (!empty($userFile)) {
+        $pluginArguments['userFieldValue'] = $userFile;
+    }
+
+    return $pluginArguments;
 }

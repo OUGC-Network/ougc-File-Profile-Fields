@@ -45,6 +45,16 @@ use const MYBB_ROOT;
 
 use const TIME_NOW;
 
+const FILE_STATUS_UNAPPROVED = -1;
+
+const FILE_STATUS_ON_QUEUE = 0;
+
+const FILE_STATUS_APPROVED = 1;
+
+const TEMPLATE_SECTION_MEMBER_LIST = 'memberList';
+
+const URL = 'modcp.php';
+
 function load_language()
 {
     global $lang;
@@ -140,42 +150,36 @@ function getTemplate(string $templateName = '', bool $enableHTMLComments = true)
     return $templates->render(getTemplateName($templateName), true, $enableHTMLComments);
 }
 
-// Set url
-function set_url(string $url = '')
+function urlHandler(string $newUrl = ''): string
 {
-    static $current_url = '';
+    static $setUrl = URL;
 
-    if (($url = trim($url))) {
-        $current_url = $url;
+    if (($newUrl = trim($newUrl))) {
+        $setUrl = $newUrl;
     }
 
-    return $current_url;
+    return $setUrl;
 }
 
-// Set url
-function get_url()
+function urlHandlerSet(string $newUrl)
 {
-    return set_url();
+    urlHandler($newUrl);
 }
 
-// Build an url parameter
-function build_url(array $urlappend = [])
+function urlHandlerGet(): string
+{
+    return urlHandler();
+}
+
+function urlHandlerBuild(array $urlAppend = [], bool $fetchImportUrl = false, bool $encode = true): string
 {
     global $PL;
 
-    load_pluginlibrary(false);
-
     if (!is_object($PL)) {
-        return get_url();
+        $PL || require_once PLUGINLIBRARY;
     }
 
-    if ($urlappend && !is_array($urlappend)) {
-        $urlappend = explode('=', $urlappend);
-
-        $urlappend = [$urlappend[0] => $urlappend[1]];
-    }
-
-    return $PL->url_append(get_url(), $urlappend, '&amp;', true);
+    return $PL->url_append(urlHandlerGet(), $urlAppend, '&amp;', $encode);
 }
 
 function store_file(array $insert_data)
@@ -228,6 +232,30 @@ function query_file(int $aid)
     $query = $db->simple_select('ougc_fileprofilefields_files', '*', "aid='{$aid}'");
 
     return $db->fetch_array($query);
+}
+
+function queryFilesMultiple(
+    array $whereClauses,
+    string $queryFields = 'aid, uid, muid, fid, filename, filesize, filemime, name, downloads, thumbnail, dimensions, md5hash, uploaddate, updatedate, status'
+) {
+    global $db;
+
+    $dbQuery = $db->simple_select('ougc_fileprofilefields_files', $queryFields, implode(' AND ', $whereClauses));
+
+    $filesObjects = [];
+
+    if ($db->num_rows($dbQuery)) {
+        while ($fileData = $db->fetch_array($dbQuery)) {
+            if (isset($fileData['aid'])) {
+                $filesObjects[(int)$fileData['aid']] = $fileData;
+                //unset($filesObjects[(int)$fileData['aid']]['aid']);
+            } else {
+                $filesObjects[] = $fileData;
+            }
+        }
+    }
+
+    return $filesObjects;
 }
 
 function upload_file(int $uid, array $profilefield)
@@ -624,4 +652,127 @@ function get_userfields(int $uid)
     }
 
     return $user_cache[$uid];
+}
+
+function customTemplateIsSet(string $templateName): bool
+{
+    global $templates;
+
+    return isset($templates->cache["ougcfileprofilefields_{$templateName}"]);
+}
+
+function renderUserFile(
+    array $fileData,
+    array $profileFieldData,
+    string $templateSection = TEMPLATE_SECTION_MEMBER_LIST
+): string {
+    global $mybb;
+
+    $fileStatus = (int)$fileData['status'];
+
+    $isModerator = (bool)is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
+
+    if ($fileStatus !== FILE_STATUS_APPROVED && !$isModerator) {
+        return '';
+    }
+
+    global $lang;
+
+    $profileFieldID = (int)$fileData['fid'];
+
+    $userID = (int)$fileData['uid'];
+
+    load_language();
+
+    $fileExtension = get_extension(my_strtolower($fileData['filename']));
+
+    $extensionIcon = get_attachment_icon($fileExtension);
+
+    $fileName = htmlspecialchars_uni($fileData['filename']);
+
+    $fileSize = get_friendly_size($fileData['filesize']);
+
+    $fileDownloads = my_number_format($fileData['downloads']);
+
+    $fileHash = htmlspecialchars_uni($fileData['md5hash']);
+
+    $fileUploadDate = my_date('normal', $fileData['uploaddate']);
+
+    $fileUpdateDate = my_date('normal', $fileData['updatedate']);
+
+    $fileThumbnail = htmlspecialchars_uni($fileData['thumbnail']);
+
+    $statusCode = '';
+
+    global $ougcProfileFieldsCategoriesCurrentID;
+
+    if (!isset($ougcProfileFieldsCategoriesCurrentID)) {
+        $ougcProfileFieldsCategoriesCurrentID = 0;
+    }
+
+    if ($fileStatus !== FILE_STATUS_APPROVED) {
+        $statusDescription = $lang->ougc_fileprofilefields_status_notification_unapproved;
+
+        if ($fileStatus === FILE_STATUS_ON_QUEUE) {
+            $queueUrl = urlHandlerBuild([
+                'action' => 'ougc_fileprofilefields',
+                'filter[uid]' => $userID,
+                "filter[fids][{$profileFieldID}]" => $profileFieldID,
+            ]);
+
+            $statusDescription = $lang->ougc_fileprofilefields_status_notification_onqueue;
+        }
+
+        if ($isModerator && customTemplateIsSet(
+                "{$templateSection}StatusModeratorCategory{$ougcProfileFieldsCategoriesCurrentID}"
+            )) {
+            $statusCode = eval(
+            getTemplate(
+                "{$templateSection}StatusModeratorCategory{$ougcProfileFieldsCategoriesCurrentID}"
+            )
+            );
+        } elseif ($isModerator && customTemplateIsSet("{$templateSection}StatusModeratorField{$profileFieldID}")) {
+            $statusCode = eval(getTemplate("{$templateSection}StatusModeratorField{$profileFieldID}"));
+        } elseif ($isModerator) {
+            $statusCode = eval(getTemplate("{$templateSection}StatusModerator"));
+        } elseif (customTemplateIsSet("{$templateSection}StatusCategory{$ougcProfileFieldsCategoriesCurrentID}")) {
+            $statusCode = eval(
+            getTemplate(
+                "{$templateSection}StatusCategory{$ougcProfileFieldsCategoriesCurrentID}"
+            )
+            );
+        } elseif (customTemplateIsSet("{$templateSection}StatusField{$profileFieldID}")) {
+            $statusCode = eval(getTemplate("{$templateSection}StatusField{$profileFieldID}"));
+        } else {
+            $statusCode = eval(getTemplate("{$templateSection}Status"));
+        }
+    }
+
+    $attachmentID = (int)$fileData['aid'];
+
+    if (
+        $fileData['thumbnail'] &&
+        $profileFieldData['ougc_fileprofilefields_imageonly'] &&
+        $profileFieldData['ougc_fileprofilefields_thumbnails']
+    ) {
+        $thumbnailDimensions = explode('|', $fileData['dimensions']);
+
+        $thumbnailWidth = $thumbnailDimensions[0] ?? 0;
+
+        $thumbnailHeight = $thumbnailDimensions[1] ?? 0;
+
+        if (customTemplateIsSet("{$templateSection}FileThumbnailCategory{$ougcProfileFieldsCategoriesCurrentID}")) {
+            return eval(getTemplate("{$templateSection}FileThumbnailCategory{$ougcProfileFieldsCategoriesCurrentID}"));
+        } elseif (customTemplateIsSet("{$templateSection}FileThumbnailField{$profileFieldID}")) {
+            return eval(getTemplate("{$templateSection}FileThumbnailField{$profileFieldID}"));
+        } else {
+            return eval(getTemplate("{$templateSection}FileThumbnail"));
+        }
+    } elseif (customTemplateIsSet("{$templateSection}FileCategory{$ougcProfileFieldsCategoriesCurrentID}")) {
+        return eval(getTemplate("{$templateSection}FileCategory{$ougcProfileFieldsCategoriesCurrentID}"));
+    } elseif (customTemplateIsSet("{$templateSection}FileField{$profileFieldID}")) {
+        return eval(getTemplate("{$templateSection}FileField{$profileFieldID}"));
+    } else {
+        return eval(getTemplate("{$templateSection}File"));
+    }
 }
