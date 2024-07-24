@@ -186,9 +186,14 @@ function urlHandlerBuild(array $urlAppend = [], bool $fetchImportUrl = false, bo
 
 function store_file(array $insert_data)
 {
-    global $db, $mybb;
+    global $db, $plugins;
 
     $clean_data = [];
+
+    $args = [
+        'insert_data' => &$insert_data,
+        'clean_data' => &$clean_data
+    ];
 
     foreach (['uid', 'fid', 'muid', 'filesize', 'downloads', 'uploaddate', 'updatedate', 'status'] as $key) {
         if (isset($insert_data[$key])) {
@@ -201,6 +206,8 @@ function store_file(array $insert_data)
             $clean_data[$key] = $db->escape_string($insert_data[$key]);
         }
     }
+
+    $args = $plugins->run_hooks('ougc_fileprofilefields_store_file_end', $args);
 
     $aid = 0;
 
@@ -273,7 +280,7 @@ function upload_file(int $uid, array $profilefield)
         'ret_data' => &$ret_data
     ];
 
-    $plugins->run_hooks('ougc_fileprofilefields_upload_file_end_start', $args);
+    $args = $plugins->run_hooks('ougc_fileprofilefields_upload_file_start', $args);
 
     $uid = (int)$uid;
 
@@ -573,11 +580,11 @@ function upload_file(int $uid, array $profilefield)
         return $ret;
     }
 
-    $plugins->run_hooks('ougc_fileprofilefields_upload_file_end_start', $args);
+    $ret_data['md5hash'] = md5_file("{$uploadpath}/{$filename}");
 
-    $ret = $ret_data;
+    $args = $plugins->run_hooks('ougc_fileprofilefields_upload_file_end', $args);
 
-    return $ret;
+    return $ret_data;
 }
 
 function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [])

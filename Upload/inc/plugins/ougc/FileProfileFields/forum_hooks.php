@@ -245,8 +245,6 @@ function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
             continue;
         }
 
-        $md5 = md5_file("{$file['uploadpath']}/{$file['name']}");
-
         $insert_data = [
             'uid' => (int)$user['uid'],
             'fid' => (int)$fid,
@@ -256,7 +254,7 @@ function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
             'name' => (string)$file['name'],
             'thumbnail' => $file['thumbnail'] ?? '',
             'dimensions' => $file['dimensions'] ?? '',
-            'md5hash' => (string)$md5 ?: '',
+            'md5hash' => (string)$file['md5hash'] ?: '',
             'updatedate' => TIME_NOW
         ];
 
@@ -281,7 +279,7 @@ function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
             'dh' => &$dh
         ];
 
-        $plugins->run_hooks('ougc_fileprofilefields_user_update', $args);
+        $args = $plugins->run_hooks('ougc_fileprofilefields_user_update', $args);
 
         if ($aid = store_file($insert_data)) {
             $user_fields["fid{$fid}"] = $db->escape_string($aid);
