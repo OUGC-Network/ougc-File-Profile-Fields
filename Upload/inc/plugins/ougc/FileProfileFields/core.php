@@ -589,7 +589,30 @@ function upload_file(int $uid, array $profilefield)
 
 function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [])
 {
+    global $plugins;
+
+    $profileFieldData = [];
+
+    foreach (getProfileFieldsCache() as $profileField) {
+        if ((int)$profileField['fid'] === $fid) {
+            $profileFieldData = $profileField;
+
+            break;
+        }
+    }
+
     $filename = "profilefieldfile_{$fid}_{$uid}";
+
+    $hook_arguments = [
+        'uid' => &$uid,
+        'fid' => &$fid,
+        'uploadpath' => &$uploadpath,
+        'exclude' => &$exclude,
+        'profileFieldData' => &$profileFieldData,
+        'filename' => &$filename,
+    ];
+
+    $hook_arguments = $plugins->run_hooks('ougc_fileprofilefields_remove_files_start', $hook_arguments);
 
     $dir = opendir($uploadpath);
 
@@ -610,6 +633,8 @@ function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [
 
         @closedir($dir);
     }
+
+    $hook_arguments = $plugins->run_hooks('ougc_fileprofilefields_remove_files_end', $hook_arguments);
 }
 
 function delete_file(int $uid, array $profilefield)

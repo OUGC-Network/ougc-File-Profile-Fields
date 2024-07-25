@@ -159,26 +159,6 @@ function _activate()
 
     _db_verify_columns();
 
-    require_once MYBB_ROOT . '/inc/adminfunctions_templates.php';
-
-    find_replace_templatesets(
-        'usercp_profile',
-        '#' . preg_quote('method="post" name="input"') . '#',
-        'method="post" name="input" enctype="multipart/form-data"'
-    );
-
-    find_replace_templatesets(
-        'modcp_editprofile',
-        '#' . preg_quote('action="modcp.php" method="post"') . '#',
-        'action="modcp.php" method="post" enctype="multipart/form-data"'
-    );
-
-    find_replace_templatesets(
-        'modcp_nav',
-        '#' . preg_quote('{$modcp_nav_users}') . '#',
-        '{$modcp_nav_users}<!--OUGC_FILEPROFILEFIELDS-->'
-    );
-
     /*~*~* RUN UPDATES START *~*~*/
 
     /*~*~* RUN UPDATES END *~*~*/
@@ -190,13 +170,6 @@ function _activate()
 
 function _deactivate()
 {
-    require_once MYBB_ROOT . '/inc/adminfunctions_templates.php';
-
-    find_replace_templatesets('usercp_profile', '#' . preg_quote('enctype="multipart/form-data"') . '#i', '', 0);
-
-    find_replace_templatesets('modcp_editprofile', '#' . preg_quote('enctype="multipart/form-data"') . '#i', '', 0);
-
-    find_replace_templatesets('modcp_nav', '#' . preg_quote('<!--OUGC_FILEPROFILEFIELDS-->') . '#i', '', 0);
 }
 
 function _install()
@@ -267,7 +240,7 @@ function _db_tables()
         'ougc_fileprofilefields_files' => [
             'aid' => 'int UNSIGNED NOT NULL AUTO_INCREMENT',
             'uid' => 'int UNSIGNED NOT NULL',
-            'muid' => 'int UNSIGNED NOT NULL',
+            'muid' => 'int UNSIGNED NOT NULL DEFAULT 0',
             'fid' => 'int UNSIGNED NOT NULL',
             'filename' => "varchar(255) NOT NULL DEFAULT ''",
             'filesize' => "int(10) NOT NULL DEFAULT '0'",

@@ -80,6 +80,12 @@ function global_start09(): bool
         $templatelist .= 'attachment_icon, ougcfileprofilefields_profile, ougcfileprofilefields_profile_file, ougcfileprofilefields_profile_file_thumbnail, ougcfileprofilefields_profile_status, ougcfileprofilefields_profile_status_mod';
     }
 
+    if (THIS_SCRIPT == 'usercp.php') {
+        $load_custom = 'usercp';
+
+        $templatelist .= 'attachment_icon, ougcfileprofilefields_usercp, ougcfileprofilefields_usercp_file, ougcfileprofilefields_usercp_file_thumbnail, ougcfileprofilefields_usercp_status, ougcfileprofilefields_usercp_status_mod, ougcfileprofilefields_usercp_remove, ougcfileprofilefields_usercp_update';
+    }
+
     if ($load_custom) {
         $pfcache = getProfileFieldsCache();
 
@@ -94,10 +100,6 @@ function global_start09(): bool
                 }
             }
         }
-    }
-
-    if (THIS_SCRIPT == 'usercp.php') {
-        $templatelist .= 'attachment_icon, ougcfileprofilefields_usercp, ougcfileprofilefields_usercp_file, ougcfileprofilefields_usercp_file_thumbnail, ougcfileprofilefields_usercp_status, ougcfileprofilefields_usercp_status_mod, ougcfileprofilefields_usercp_remove, ougcfileprofilefields_usercp_update';
     }
 
     if (THIS_SCRIPT == 'modcp.php') {
