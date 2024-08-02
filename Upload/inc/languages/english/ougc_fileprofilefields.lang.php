@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 $l = [
-    'setting_group_ougc_fileprofilefields' => 'OUGC File Profile Fields',
+    'setting_group_ougc_fileprofilefields' => 'File Profile Fields',
 
     'ougc_fileprofilefields_errors_upload_failed_upload_size' => 'There was an error uploading your file. It is be possible that your file exceed the server maximum upload size.',
     'ougc_fileprofilefields_errors_upload_failed_file_exists' => 'There was an error uploading your file. It is be possible that the destination directory is not writeable.',

@@ -386,7 +386,7 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
 
     $field = "fid{$profilefield['fid']}";
 
-    if ($type != 'file') {
+    if ($type !== 'file') {
         return false;
     }
 
@@ -400,7 +400,11 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
 
     $ismod = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
 
-    if ($aid && $file = query_file($aid)) {
+    if (in_array($section, ['profile', 'postbit'])) {
+        $user[$field] = '';
+    }
+
+    if ($file = query_file($aid)) {
         $file['status'] = (int)$file['status'];
 
         if (
@@ -495,9 +499,7 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
                 }
             } elseif (!empty($ougcProfileFieldsCategoriesCurrentID) && isset($templates->cache["ougcfileprofilefields_{$section}_file_category{$ougcProfileFieldsCategoriesCurrentID}"])) {
                 $preview .= eval(getTemplate("{$section}_file_category{$ougcProfileFieldsCategoriesCurrentID}"));
-            } elseif (!defined(
-                    'IN_ADMINCP'
-                ) && isset($templates->cache["ougcfileprofilefields_{$section}_file_{$fid}"])) {
+            } elseif (isset($templates->cache["ougcfileprofilefields_{$section}_file_{$fid}"])) {
                 $preview .= eval(getTemplate("{$section}_file_{$fid}"));
             } else {
                 $preview .= eval(getTemplate("{$section}_file"));
@@ -528,19 +530,7 @@ function ougc_plugins_customfields_usercp_end80(string $section = 'usercp', arra
 
                 $remove = eval(getTemplate("{$section}_remove"));
             }
-
-            if (in_array($section, ['profile'])) {
-                $user[$field] = null;
-            }
-
-            if (in_array($section, ['postbit'])) {
-                $user[$field] = null;
-            }
-        } elseif (in_array($section, ['profile', 'postbit'])) {
-            $user[$field] = null;
         }
-    } elseif (in_array($section, ['profile', 'postbit'])) {
-        $user[$field] = null;
     }
 
     if (!in_array($section, ['profile', 'postbit'])) {

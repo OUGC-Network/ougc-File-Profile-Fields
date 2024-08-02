@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 $l = [
-    'setting_group_ougc_fileprofilefields' => 'OUGC File Profile Fields',
+    'setting_group_ougc_fileprofilefields' => 'File Profile Fields',
     'setting_group_ougc_fileprofilefields_desc' => 'Maximize your profile with custom file profile fields.',
 
     'setting_ougc_fileprofilefields_perpage' => 'Items Per Page',
