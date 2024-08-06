@@ -720,7 +720,7 @@ function customTemplateIsSet(string $templateName): bool
 function renderUserFile(
     array $fileData,
     array $profileFieldData,
-    string $templateSection = TEMPLATE_SECTION_MEMBER_LIST,
+    string $templatePrefix = TEMPLATE_SECTION_MEMBER_LIST,
     int $categoryID = 0
 ): string {
     global $mybb;
@@ -774,22 +774,22 @@ function renderUserFile(
             $statusDescription = $lang->ougc_fileprofilefields_status_notification_onqueue;
         }
 
-        if ($isModerator && customTemplateIsSet("{$templateSection}StatusModeratorCategory{$categoryID}")) {
-            $statusCode = eval(getTemplate("{$templateSection}StatusModeratorCategory{$categoryID}"));
-        } elseif ($isModerator && customTemplateIsSet("{$templateSection}StatusModeratorField{$profileFieldID}")) {
-            $statusCode = eval(getTemplate("{$templateSection}StatusModeratorField{$profileFieldID}"));
+        if ($isModerator && customTemplateIsSet("{$templatePrefix}StatusModeratorCategory{$categoryID}")) {
+            $statusCode = eval(getTemplate("{$templatePrefix}StatusModeratorCategory{$categoryID}"));
+        } elseif ($isModerator && customTemplateIsSet("{$templatePrefix}StatusModeratorField{$profileFieldID}")) {
+            $statusCode = eval(getTemplate("{$templatePrefix}StatusModeratorField{$profileFieldID}"));
         } elseif ($isModerator) {
-            $statusCode = eval(getTemplate("{$templateSection}StatusModerator"));
-        } elseif (customTemplateIsSet("{$templateSection}StatusCategory{$categoryID}")) {
+            $statusCode = eval(getTemplate("{$templatePrefix}StatusModerator"));
+        } elseif (customTemplateIsSet("{$templatePrefix}StatusCategory{$categoryID}")) {
             $statusCode = eval(
             getTemplate(
-                "{$templateSection}StatusCategory{$categoryID}"
+                "{$templatePrefix}StatusCategory{$categoryID}"
             )
             );
-        } elseif (customTemplateIsSet("{$templateSection}StatusField{$profileFieldID}")) {
-            $statusCode = eval(getTemplate("{$templateSection}StatusField{$profileFieldID}"));
+        } elseif (customTemplateIsSet("{$templatePrefix}StatusField{$profileFieldID}")) {
+            $statusCode = eval(getTemplate("{$templatePrefix}StatusField{$profileFieldID}"));
         } else {
-            $statusCode = eval(getTemplate("{$templateSection}Status"));
+            $statusCode = eval(getTemplate("{$templatePrefix}Status"));
         }
     }
 
@@ -806,18 +806,18 @@ function renderUserFile(
 
         $thumbnailHeight = $thumbnailDimensions[1] ?? 0;
 
-        if (customTemplateIsSet("{$templateSection}FileThumbnailCategory{$categoryID}")) {
-            return eval(getTemplate("{$templateSection}FileThumbnailCategory{$categoryID}"));
-        } elseif (customTemplateIsSet("{$templateSection}FileThumbnailField{$profileFieldID}")) {
-            return eval(getTemplate("{$templateSection}FileThumbnailField{$profileFieldID}"));
+        if (customTemplateIsSet("{$templatePrefix}ThumbnailCategory{$categoryID}")) {
+            return eval(getTemplate("{$templatePrefix}ThumbnailCategory{$categoryID}"));
+        } elseif (customTemplateIsSet("{$templatePrefix}ThumbnailField{$profileFieldID}")) {
+            return eval(getTemplate("{$templatePrefix}ThumbnailField{$profileFieldID}"));
         } else {
-            return eval(getTemplate("{$templateSection}FileThumbnail"));
+            return eval(getTemplate("{$templatePrefix}Thumbnail"));
         }
-    } elseif (customTemplateIsSet("{$templateSection}FileCategory{$categoryID}")) {
-        return eval(getTemplate("{$templateSection}FileCategory{$categoryID}"));
-    } elseif (customTemplateIsSet("{$templateSection}FileField{$profileFieldID}")) {
-        return eval(getTemplate("{$templateSection}FileField{$profileFieldID}"));
+    } elseif (customTemplateIsSet("{$templatePrefix}Category{$categoryID}")) {
+        return eval(getTemplate("{$templatePrefix}Category{$categoryID}"));
+    } elseif (customTemplateIsSet("{$templatePrefix}Field{$profileFieldID}")) {
+        return eval(getTemplate("{$templatePrefix}Field{$profileFieldID}"));
     } else {
-        return eval(getTemplate("{$templateSection}File"));
+        return eval(getTemplate($templatePrefix));
     }
 }
