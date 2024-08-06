@@ -54,7 +54,7 @@ use const TIME_NOW;
 
 function global_start09(): bool
 {
-    global $templatelist, $cache;
+    global $templatelist;
 
     if (!isset($templatelist)) {
         $templatelist = '';
@@ -62,41 +62,26 @@ function global_start09(): bool
         $templatelist .= ',';
     }
 
-    if (!defined('THIS_SCRIPT')) {
-        return false;
-    }
-
-    $load_custom = false;
-
-    if (in_array(THIS_SCRIPT, ['showthread.php', 'private.php', 'newthread.php', 'newreply.php', 'editpost.php'])) {
-        $load_custom = 'postbit';
-
-        $templatelist .= 'attachment_icon, ougcfileprofilefields_postbit, ougcfileprofilefields_postbit_file, ougcfileprofilefields_postbit_file_thumbnail, ougcfileprofilefields_postbit_status, ougcfileprofilefields_postbit_status_mod';
-    }
-
-    if (THIS_SCRIPT == 'member.php') {
-        $load_custom = 'profile';
-
-        $templatelist .= 'attachment_icon, ougcfileprofilefields_profile, ougcfileprofilefields_profile_file, ougcfileprofilefields_profile_file_thumbnail, ougcfileprofilefields_profile_status, ougcfileprofilefields_profile_status_mod';
-    }
-
-    if (THIS_SCRIPT == 'usercp.php') {
-        $load_custom = 'usercp';
-
-        $templatelist .= 'attachment_icon, ougcfileprofilefields_usercp, ougcfileprofilefields_usercp_file, ougcfileprofilefields_usercp_file_thumbnail, ougcfileprofilefields_usercp_status, ougcfileprofilefields_usercp_status_mod, ougcfileprofilefields_usercp_remove, ougcfileprofilefields_usercp_update';
-    }
-
-    if ($load_custom) {
+    if (in_array(
+        THIS_SCRIPT,
+        ['showthread.php', 'private.php', 'newthread.php', 'newreply.php', 'editpost.php', 'member.php', 'usercp.php']
+    )) {
         $pfcache = getProfileFieldsCache();
 
         if ($pfcache) {
+            $mainPrefix = 'ougcfileprofilefields_';
+
+            $templatePrefixes = ['profile', 'postBit', 'memberList'];
+
             foreach ($pfcache as $profilefield) {
                 if (my_strpos($profilefield['type'], 'file') !== false) {
-                    $fieldID = (int)$profilefield['fid'];
+                    $profileFieldID = (int)$profilefield['fid'];
 
-                    $templatelist .= ", ougcfileprofilefields_{$load_custom}_file_{$fieldID}, ougcfileprofilefields_{$load_custom}_file_thumbnail_{$fieldID}, ougcfileprofilefields_{$load_custom}_status_{$fieldID}, ougcfileprofilefields_{$load_custom}_status_mod_{$fieldID}";
+                    foreach ($templatePrefixes as $templatePrefix) {
+                        $templatelist .= ", {$mainPrefix}{$templatePrefix}, {$mainPrefix}{$templatePrefix}Status, {$mainPrefix}{$templatePrefix}StatusModerator, {$mainPrefix}{$templatePrefix}Thumbnail";
 
-                    $templatelist .= ", ougcfileprofilefields_memberListStatusModeratorField{$fieldID}, ougcfileprofilefields_memberListStatusField{$fieldID}, ougcfileprofilefields_memberListFileField{$fieldID}, ougcfileprofilefields_memberListFileThumbnailField{$fieldID}";
+                        $templatelist .= ", {$mainPrefix}{$templatePrefix}Field{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusField{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusModeratorField{$profileFieldID}, {$mainPrefix}{$templatePrefix}ThumbnailField{$profileFieldID}";
+                    }
                 }
             }
         }
@@ -1133,6 +1118,12 @@ function memberlist_user(array $userData): array
 
 function ougc_profile_fields_categories_build_fields_categories_end(array &$pluginArguments): array
 {
+    global $fileProfileFieldsProcessedUsers;
+
+    if (!isset($fileProfileFieldsProcessedUsers)) {
+        $fileProfileFieldsProcessedUsers = [];
+    }
+
     if ($pluginArguments['fieldType'] !== 'file') {
         return $pluginArguments;
     }
@@ -1155,6 +1146,10 @@ function ougc_profile_fields_categories_build_fields_categories_end(array &$plug
         TEMPLATE_SECTION_MEMBER_LIST,
         $categoryID
     );
+
+    if (!isset($fileProfileFieldsProcessedUsers[$userID])) {
+        $fileProfileFieldsProcessedUsers[$userID] = true;
+    }
 
     if (!empty($userFile)) {
         $pluginArguments['userFieldValue'] = $userFile;
