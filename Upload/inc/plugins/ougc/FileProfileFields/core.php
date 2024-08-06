@@ -30,7 +30,11 @@ declare(strict_types=1);
 
 namespace ougc\FileProfileFields\Core;
 
+use AbstractPdoDbDriver;
+use MyBB;
 use OUGC_ProfiecatsCache;
+
+use ReflectionProperty;
 
 use function delete_uploaded_file;
 
@@ -288,21 +292,23 @@ function upload_file(int $uid, array $profilefield)
 
     load_language();
 
-    $field = "fid{$profilefield['fid']}";
+    $fieldIdentifier = "fid{$profilefield['fid']}";
 
-    if (!is_uploaded_file($_FILES['profile_fields']['tmp_name'][$field])) {
+    if (!is_uploaded_file($_FILES['profile_fields']['tmp_name'][$fieldIdentifier])) {
         $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_upload_size;
 
         return $ret;
     }
 
-    $ret_data['filename'] = $_FILES['profile_fields']['name'][$field];
+    $ret_data['filename'] = $_FILES['profile_fields']['name'][$fieldIdentifier];
 
-    $ret_data['filemime'] = $_FILES['profile_fields']['type'][$field];
+    $ret_data['filemime'] = $_FILES['profile_fields']['type'][$fieldIdentifier];
 
-    $ret_data['filesize'] = $_FILES['profile_fields']['size'][$field];
+    $ret_data['filesize'] = $_FILES['profile_fields']['size'][$fieldIdentifier];
 
-    $ret_data['filetype'] = $file_ext = get_extension(my_strtolower($_FILES['profile_fields']['name'][$field]));
+    $ret_data['filetype'] = $file_ext = get_extension(
+        my_strtolower($_FILES['profile_fields']['name'][$fieldIdentifier])
+    );
 
     $attachtypes = $mybb->cache->read('attachtypes');
 
@@ -341,10 +347,10 @@ function upload_file(int $uid, array $profilefield)
 
     $maxfilenamelength = 255;
 
-    if (my_strlen($_FILES['profile_fields']['name'][$field]) > $maxfilenamelength) {
+    if (my_strlen($_FILES['profile_fields']['name'][$fieldIdentifier]) > $maxfilenamelength) {
         $ret['error'] = $lang->sprintf(
             $lang->ougc_fileprofilefields_errors_file_name,
-            htmlspecialchars_uni($_FILES['profile_fields']['name'][$field]),
+            htmlspecialchars_uni($_FILES['profile_fields']['name'][$fieldIdentifier]),
             $maxfilenamelength
         );
 
@@ -360,10 +366,10 @@ function upload_file(int $uid, array $profilefield)
     require_once MYBB_ROOT . 'inc/functions_upload.php';
 
     $file = \upload_file([
-        'name' => $_FILES['profile_fields']['name'][$field],
-        'type' => $_FILES['profile_fields']['type'][$field],
-        'tmp_name' => $_FILES['profile_fields']['tmp_name'][$field],
-        'size' => $_FILES['profile_fields']['size'][$field],
+        'name' => $_FILES['profile_fields']['name'][$fieldIdentifier],
+        'type' => $_FILES['profile_fields']['type'][$fieldIdentifier],
+        'tmp_name' => $_FILES['profile_fields']['tmp_name'][$fieldIdentifier],
+        'size' => $_FILES['profile_fields']['size'][$fieldIdentifier],
     ], $uploadpath, $filename);
 
     if (isset($file['error']) || !file_exists("{$uploadpath}/{$filename}")) {
@@ -819,5 +825,321 @@ function renderUserFile(
         return eval(getTemplate("{$templatePrefix}Field{$profileFieldID}"));
     } else {
         return eval(getTemplate($templatePrefix));
+    }
+}
+
+function buildFileFields(
+    string $templatePrefix,
+    array &$userData,
+    array &$profileFieldData,
+    string &$filePreview
+): bool {
+    $fieldType = explode("\n", $profileFieldData['type'], 2)[0] ?? '';
+
+    if ($fieldType !== 'file') {
+        return false;
+    }
+
+    global $mybb, $user_fields, $customfield, $maxlength, $code, $templates, $lang, $ougc_fileprofilefields, $profilefields;
+    global $ougcProfileFieldsCategoriesCurrentID, $ougcProfileFieldsCategoriesProfileContents;
+
+    $categoryID = $ougcProfileFieldsCategoriesCurrentID ?? 0;
+
+    isset($ougc_fileprofilefields) || $ougc_fileprofilefields = [];
+
+    $removeRow = $updateRow = $statusCode = '';
+
+    if ($templatePrefix == 'postbit') {
+        //$attachmentID = (int)$hookArguments['post'][$fieldIdentifier];
+
+        if (isset($profilefields)) {
+            //$filePreview = &$profilefields;
+        } elseif (isset($ougcProfileFieldsCategoriesProfileContents)) {
+        } else {
+            //$filePreview = &$hookArguments['post']['profilefield'];
+        }
+        //$type = trim(explode("\n", $profileFieldData['type'], 2)[0]);
+    } else {
+        //global $type, $field;
+
+        if ($templatePrefix == 'profile') {
+        } elseif (defined('IN_ADMINCP')) {
+            //$userData = &$user_fields;
+        }
+    }
+
+    $profileFieldID = (int)$profileFieldData['fid'];
+
+    $fieldIdentifier = "fid{$profileFieldID}";
+
+    $attachmentID = isset($userData[$fieldIdentifier]) ? (int)$userData[$fieldIdentifier] : 0;
+
+    $userID = (int)$userData['uid'];
+
+    $ougc_fileprofilefields[$fieldIdentifier] = '';
+
+    if ($profileFieldData['ougc_fileprofilefields_customoutput']) {
+        $filePreview = &$ougc_fileprofilefields[$fieldIdentifier];
+    }
+
+    $fieldLength = (int)$profileFieldData['length'];
+
+    $styleCode = 'display: inherit;';
+
+    $ismod = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
+
+    if (in_array($templatePrefix, ['profile', 'postbit'])) {
+        $userData[$fieldIdentifier] = '';
+    }
+
+    if ($fileData = query_file($attachmentID)) {
+        $fileData['status'] = (int)$fileData['status'];
+
+        if (
+            $fileData['status'] === 1 ||
+            $ismod ||
+            !in_array($templatePrefix, ['profile', 'postbit'])
+        ) {
+            $styleCode = 'display: none;';
+
+            load_language();
+
+            $fileExtension = get_extension(my_strtolower($fileData['filename']));
+
+            $extensionIcon = get_attachment_icon($fileExtension);
+
+            $fileName = htmlspecialchars_uni($fileData['filename']);
+
+            $fileSize = get_friendly_size($fileData['filesize']);
+
+            $fileDownloads = my_number_format($fileData['downloads']);
+
+            $fileHash = htmlspecialchars_uni($fileData['md5hash']);
+
+            $fileUploadDate = my_date('normal', $fileData['uploaddate']);
+
+            $fileUpdateDate = my_date('normal', $fileData['updatedate']);
+
+            // TODO: add option to reset downloads and upload date
+
+            $thumbnail = htmlspecialchars_uni($fileData['thumbnail']);
+
+            if ($fileData['status'] !== 1) {
+                $statusDescription = $lang->ougc_fileprofilefields_status_notification_onqueue;
+
+                if ($fileData['status'] === -1) {
+                    $statusDescription = $lang->ougc_fileprofilefields_status_notification_unapproved;
+                }
+
+                if ($ismod && customTemplateIsSet("{$templatePrefix}StatusModeratorCategory{$categoryID}")) {
+                    $statusCode = eval(
+                    getTemplate(
+                        "{$templatePrefix}StatusModeratorCategory{$categoryID}"
+                    )
+                    );
+                } elseif ($ismod && customTemplateIsSet("{$templatePrefix}StatusModeratorField{$profileFieldID}")) {
+                    $statusCode = eval(getTemplate("{$templatePrefix}StatusModeratorField{$profileFieldID}"));
+                } elseif ($ismod) {
+                    $statusCode = eval(getTemplate("{$templatePrefix}StatusModerator"));
+                } elseif (customTemplateIsSet("{$templatePrefix}StatusCategory{$categoryID}")) {
+                    $statusCode = eval(
+                    getTemplate(
+                        "{$templatePrefix}StatusCategory{$categoryID}"
+                    )
+                    );
+                } elseif (customTemplateIsSet("{$templatePrefix}StatusField{$profileFieldID}")) {
+                    $statusCode = eval(getTemplate("{$templatePrefix}StatusField{$profileFieldID}"));
+                } else {
+                    $statusCode = eval(getTemplate("{$templatePrefix}Status"));
+                }
+            }
+
+            if (!$profileFieldData['ougc_fileprofilefields_customoutput'] && in_array($templatePrefix, ['postbit'])) {
+                $name = htmlspecialchars_uni($profileFieldData['name']);
+
+                $filePreview .= eval(getTemplate("{$templatePrefix}"));
+            }
+
+            if (
+                $fileData['thumbnail'] &&
+                $profileFieldData['ougc_fileprofilefields_imageonly'] &&
+                $profileFieldData['ougc_fileprofilefields_thumbnails'] &&
+                file_exists(
+                    MYBB_ROOT . "{$profileFieldData['ougc_fileprofilefields_directory']}/{$fileData['thumbnail']}"
+                )
+            ) {
+                $thumbnailDimensions = explode('|', $fileData['dimensions']);
+
+                $thumbnailWidth = $thumbnailDimensions[0] ?? 0;
+
+                $thumbnailHeight = $thumbnailDimensions[1] ?? 0;
+
+                $maximumDimensions = explode('|', $profileFieldData['ougc_fileprofilefields_thumbnailsdimns']);
+
+                $maximumWidth = $maximumDimensions[0] ?? 0;
+
+                $maximumHeight = $maximumDimensions[1] ?? 0;
+
+                if (customTemplateIsSet("{$templatePrefix}ThumbnailCategory{$categoryID}")) {
+                    $filePreview .= eval(
+                    getTemplate(
+                        "{$templatePrefix}ThumbnailCategory{$categoryID}"
+                    )
+                    );
+                } elseif (customTemplateIsSet("{$templatePrefix}ThumbnailField{$profileFieldID}")) {
+                    $filePreview .= eval(getTemplate("{$templatePrefix}ThumbnailField{$profileFieldID}"));
+                } else {
+                    $filePreview .= eval(getTemplate("{$templatePrefix}Thumbnail"));
+                }
+            } elseif (customTemplateIsSet("{$templatePrefix}Category{$categoryID}")) {
+                $filePreview .= eval(
+                getTemplate(
+                    "{$templatePrefix}Category{$categoryID}"
+                )
+                );
+            } elseif (customTemplateIsSet("{$templatePrefix}{$profileFieldID}")) {
+                $filePreview .= eval(getTemplate("{$templatePrefix}{$profileFieldID}"));
+            } else {
+                $filePreview .= eval(getTemplate($templatePrefix));
+            }
+
+            if (!in_array($templatePrefix, ['profile', 'postbit'])) {
+                $update_aids = array_filter(
+                    array_map('intval', $mybb->get_input('ougcfileprofilefields_update', MyBB::INPUT_ARRAY))
+                );
+
+                $checkedElement = '';
+
+                if (isset($update_aids[$profileFieldData['fid']])) {
+                    $checkedElement = ' checked="checked"';
+                }
+
+                $updateRow = eval(getTemplate("{$templatePrefix}Update"));
+
+                $remove_aids = array_filter(
+                    array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
+                );
+
+                $checkedElement = '';
+
+                if (isset($remove_aids[$profileFieldData['fid']])) {
+                    $checkedElement = ' checked="checked"';
+                }
+
+                $removeRow = eval(getTemplate("{$templatePrefix}Remove"));
+            }
+        }
+    }
+
+    if (!in_array($templatePrefix, ['profile', 'postbit'])) {
+        load_language();
+
+        $fileExtensions = $validMimeTypes = [];
+
+        foreach ($mybb->cache->read('attachtypes') as $fileExtension => $attachType) {
+            if (
+                $attachType['ougc_fileprofilefields'] && is_member(
+                    $profileFieldData['ougc_fileprofilefields_types'],
+                    ['usergroup' => (int)$attachType['atid'], 'additionalgroups' => '']
+                ) && is_member($attachType['groups'], get_user($userData['ufid']))
+            ) {
+                $validMimeTypes[] = $attachType['mimetype'];
+
+                $fileExtensions[$fileExtension] = $lang->sprintf(
+                    $lang->ougc_fileprofilefields_info_types_item,
+                    my_strtoupper($fileExtension),
+                    get_friendly_size(
+                        (int)$profileFieldData['ougc_fileprofilefields_maxsize'] ?: (int)$attachType['maxsize']
+                    )
+                );
+            }
+        }
+
+        if ($fileExtensions) {
+            $allowedTypes = implode($lang->comma, array_keys($fileExtensions));
+
+            $allowedFileFormats = '.' . implode(', .', array_keys($fileExtensions)) . ', ' . implode(
+                    ', ',
+                    $validMimeTypes
+                );
+
+            $code = eval(getTemplate("{$templatePrefix}FieldWrapper"));
+        } else {
+            $code = $lang->ougc_fileprofilefields_info_unconfigured;
+        }
+    }
+
+    return true;
+}
+
+// control_object by Zinga Burga from MyBBHacks ( mybbhacks.zingaburga.com )
+function control_object(&$obj, $code)
+{
+    static $cnt = 0;
+    $newname = '_objcont_' . (++$cnt);
+    $objserial = serialize($obj);
+    $classname = get_class($obj);
+    $checkstr = 'O:' . strlen($classname) . ':"' . $classname . '":';
+    $checkstr_len = strlen($checkstr);
+    if (substr($objserial, 0, $checkstr_len) == $checkstr) {
+        $vars = array();
+        // grab resources/object etc, stripping scope info from keys
+        foreach ((array)$obj as $k => $v) {
+            if ($p = strrpos($k, "\0")) {
+                $k = substr($k, $p + 1);
+            }
+            $vars[$k] = $v;
+        }
+        if (!empty($vars)) {
+            $code .= '
+					function ___setvars(&$a) {
+						foreach($a as $k => &$v)
+							$this->$k = $v;
+					}
+				';
+        }
+        eval('class ' . $newname . ' extends ' . $classname . ' {' . $code . '}');
+        $obj = unserialize('O:' . strlen($newname) . ':"' . $newname . '":' . substr($objserial, $checkstr_len));
+        if (!empty($vars)) {
+            $obj->___setvars($vars);
+        }
+    }
+    // else not a valid object or PHP serialize has changed
+}
+
+// explicit workaround for PDO, as trying to serialize it causes a fatal error (even though PHP doesn't complain over serializing other resources)
+if ($GLOBALS['db'] instanceof AbstractPdoDbDriver) {
+    $GLOBALS['AbstractPdoDbDriver_lastResult_prop'] = new ReflectionProperty('AbstractPdoDbDriver', 'lastResult');
+    $GLOBALS['AbstractPdoDbDriver_lastResult_prop']->setAccessible(true);
+    function control_db($code)
+    {
+        global $db;
+        $linkvars = array(
+            'read_link' => $db->read_link,
+            'write_link' => $db->write_link,
+            'current_link' => $db->current_link,
+        );
+        unset($db->read_link, $db->write_link, $db->current_link);
+        $lastResult = $GLOBALS['AbstractPdoDbDriver_lastResult_prop']->getValue($db);
+        $GLOBALS['AbstractPdoDbDriver_lastResult_prop']->setValue($db, null); // don't let this block serialization
+        control_object($db, $code);
+        foreach ($linkvars as $k => $v) {
+            $db->$k = $v;
+        }
+        $GLOBALS['AbstractPdoDbDriver_lastResult_prop']->setValue($db, $lastResult);
+    }
+} elseif ($GLOBALS['db'] instanceof DB_SQLite) {
+    function control_db($code)
+    {
+        global $db;
+        $oldLink = $db->db;
+        unset($db->db);
+        control_object($db, $code);
+        $db->db = $oldLink;
+    }
+} else {
+    function control_db($code)
+    {
+        control_object($GLOBALS['db'], $code);
     }
 }

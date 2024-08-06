@@ -1,0 +1,24 @@
+<input type="checkbox" class="checkbox" name="ougcfileprofilefields_remove[{$profileFieldID}]"
+       id="ougcfileprofilefields_remove_{$profileFieldID}" value="1" {$checkedElement}/>
+<label for="ougcfileprofilefields_remove_{$profileFieldID}">{$lang->ougc_fileprofilefields_remove}</label>
+<script>
+    $('#ougcfileprofilefields_remove_{$profileFieldID}').change(function () {
+        if(this.checked)
+        {
+            $('#ougcfileprofilefields_update_{$profileFieldID}').prop('checked', false);
+
+            $('#profile_fields_file_{$fieldIdentifier}').show();
+        }
+        else
+        {
+            $('#profile_fields_file_{$fieldIdentifier}').hide();
+        }
+    });
+
+    $(document).ready(function() {
+        if($('#ougcfileprofilefields_remove_{$profileFieldID}:checked').length > 0)
+        {
+            $('#profile_fields_file_{$fieldIdentifier}').show();
+        }
+    });
+</script>

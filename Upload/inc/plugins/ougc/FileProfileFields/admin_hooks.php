@@ -241,9 +241,9 @@ function admin_formcontainer_output_row(array &$args): array
 
                         $height = (int)$dims[1];
 
-                        $preview = eval(getTemplate('modcp_file_thumbnail'));
+                        $preview = eval(getTemplate('adminControlPanelFileThumbnail'));
                     } else {
-                        $preview = eval(getTemplate('modcp_file'));
+                        $preview = eval(getTemplate('adminControlPanelFile'));
                     }
 
                     $update_aids = array_filter(
@@ -256,7 +256,7 @@ function admin_formcontainer_output_row(array &$args): array
                         $checked = ' checked="checked"';
                     }
 
-                    $update = eval(getTemplate('modcp_update'));
+                    $update = eval(getTemplate('adminControlPanelUpdate'));
 
                     $remove_aids = array_filter(
                         array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
@@ -268,7 +268,7 @@ function admin_formcontainer_output_row(array &$args): array
                         $checked = ' checked="checked"';
                     }
 
-                    $remove = eval(getTemplate('modcp_remove'));
+                    $remove = eval(getTemplate('adminControlPanelRemove'));
                 }
 
                 global $user;

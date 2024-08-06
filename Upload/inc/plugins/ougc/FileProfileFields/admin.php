@@ -425,33 +425,31 @@ function _edits_apply($apply = false)
 
     $member_edits = $PL->edit_core('ougc_plugins_customfields_start', 'member.php', [
         'search' => ['if(isset($userfields[$field]))'],
-        'before' => ['$plugins->run_hooks(\'ougc_plugins_customfields_profile_start\');'],
+        'before' => [
+            '$hookArguments = [
+				\'userData\' => &$userfields,
+				\'profileFieldData\' => &$customfield,
+				\'fieldCode\' => &$customfieldval
+			];
+			
+			$plugins->run_hooks(\'ougc_file_profile_fields_profile\', $hookArguments);'
+        ],
     ], $apply);
 
     $postbit_edits = $PL->edit_core('ougc_plugins_customfields_start', 'inc/functions_post.php', [
         'search' => ['$fieldfid = "fid{$field[\'fid\']}";'],
         'before' => [
-            '$args = [
-				\'post\' => &$post,
-				\'field\' => &$field
+            '$hookArguments = [
+				\'userData\' => &$post,
+				\'profileFieldData\' => &$field,
+				\'fieldCode\' => &$code
 			];
 			
-			$plugins->run_hooks(\'ougc_plugins_customfields_postbit_start\', $args);',
+			$plugins->run_hooks(\'ougc_file_profile_fields_post_start\', $hookArguments);',
         ],
     ], $apply);
 
-    //TODO, control_object() could take care of these two hook
-    $usercp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'usercp.php', [
-        'search' => ['if($profilefield[\'required\'] == 1)'],
-        'before' => ['$plugins->run_hooks(\'ougc_plugins_customfields_usercp_end\');'],
-    ], $apply);
-
-    $modcp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'modcp.php', [
-        'search' => ['if($profilefield[\'required\'] == 1)'],
-        'before' => ['$plugins->run_hooks(\'ougc_plugins_customfields_modcp_end\');'],
-    ], $apply);
-
-    return $member_edits === true && $postbit_edits === true && $usercp_edits === true && $modcp_edits === true;
+    return $member_edits === true && $postbit_edits === true;
 }
 
 function _edits_revert($apply = false)

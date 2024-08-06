@@ -1,0 +1,12 @@
+{$filePreview}
+<div id="profile_fields_file_{$fieldIdentifier}" style="{$styleCode}">
+    <input type="file" name="profile_fields[{$fieldIdentifier}]" class="fileupload" size="{$fieldLength}" accept="{$allowedFileFormats}" />
+    <div class="smalltext">
+        <strong>{$lang->ougc_fileprofilefields_info_types}:</strong> {$allowedTypes}
+    </div>
+    <br />
+</div>
+<div class="smalltext">
+    {$updateRow}
+    {$removeRow}
+</div>
