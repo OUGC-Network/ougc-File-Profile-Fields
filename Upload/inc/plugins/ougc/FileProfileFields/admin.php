@@ -437,12 +437,11 @@ function _edits_apply($apply = false)
     ], $apply);
 
     $postbit_edits = $PL->edit_core('ougc_plugins_customfields_start', 'inc/functions_post.php', [
-        'search' => ['$fieldfid = "fid{$field[\'fid\']}";'],
+        'search' => ['eval("\$post[\'profilefield\'] .= \"".$templates->get("postbit_profilefield")."\";");'],
         'before' => [
             '$hookArguments = [
 				\'userData\' => &$post,
-				\'profileFieldData\' => &$field,
-				\'fieldCode\' => &$code
+				\'profileFieldData\' => &$field
 			];
 			
 			$plugins->run_hooks(\'ougc_file_profile_fields_post_start\', $hookArguments);',
@@ -462,9 +461,5 @@ function _edits_revert($apply = false)
 
     $postbit_edits = $PL->edit_core('ougc_plugins_customfields_start', 'inc/functions_post.php', [], $apply);
 
-    $usercp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'usercp.php', [], $apply);
-
-    $modcp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'modcp.php', [], $apply);
-
-    return $member_edits === true && $postbit_edits === true && $usercp_edits === true && $modcp_edits === true;
+    return $member_edits === true && $postbit_edits === true;
 }

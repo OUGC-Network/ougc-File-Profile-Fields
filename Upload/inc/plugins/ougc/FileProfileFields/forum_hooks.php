@@ -186,7 +186,7 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
                     );
                     // this might fail in ACP or because of get_user() not getting fields
                 } elseif (empty($_user[$field])) {
-                    $dh->set_error('missing_required_profile_field', array($profileFieldData['name']));
+                    $dh->set_error('missing_required_profile_field', [$profileFieldData['name']]);
                 }
             }
 
@@ -377,7 +377,7 @@ function ougc_file_profile_fields_post_start(array &$hookArguments): array
         'postBit',
         $hookArguments['userData'],
         $hookArguments['profileFieldData'],
-        $hookArguments['fieldCode']
+        $hookArguments['userData']['profilefield']
     );
 
     return $hookArguments;

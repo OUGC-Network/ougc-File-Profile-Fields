@@ -74,7 +74,11 @@ $l = [
     'ougc_fileprofilefields_edits_apply' => 'Click to <a href="{1}">Apply</a> changes to core files.',
     'ougc_fileprofilefields_edits_revert' => 'Click to <a href="{1}">Revert</a> changes to core files.',
     'ougc_fileprofilefields_edits_apply_success' => 'File changes were applied successfully to core files.',
-    'ougc_fileprofilefields_edits_apply_error' => 'It was not possible to apply file changes to core files.',
+    'ougc_fileprofilefields_edits_apply_error' => 'It was not possible to apply file changes to core files. CHMOD files <code>member.php</code> and <code>/inc/functions_post.php</code> to 777.',
     'ougc_fileprofilefields_edits_revert_success' => 'File changes were reverted successfully to core files.',
     'ougc_fileprofilefields_edits_revert_error' => 'It was not possible to revert file changes to core files.',
+
+    'ougc_fileprofilefields_admin_health_directory_writeable' => 'Profile field files for {1}',
+    'ougc_fileprofilefields_admin_rebuild_user_fields_data' => 'Rebuilt Users Fields Data For File Fields',
+    'ougc_fileprofilefields_admin_rebuild_user_fields_data_desc' => 'When this is run, the <code>usersfields</code> table data will be updated to match the <code>ougc_fileprofilefields_files</code> table data.',
 ];

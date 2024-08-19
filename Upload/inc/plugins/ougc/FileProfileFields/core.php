@@ -249,11 +249,17 @@ function query_file(int $aid)
 
 function queryFilesMultiple(
     array $whereClauses,
-    string $queryFields = 'aid, uid, muid, fid, filename, filesize, filemime, name, downloads, thumbnail, dimensions, md5hash, uploaddate, updatedate, status'
+    string $queryFields = 'aid, uid, muid, fid, filename, filesize, filemime, name, downloads, thumbnail, dimensions, md5hash, uploaddate, updatedate, status',
+    array $queryOptions = []
 ) {
     global $db;
 
-    $dbQuery = $db->simple_select('ougc_fileprofilefields_files', $queryFields, implode(' AND ', $whereClauses));
+    $dbQuery = $db->simple_select(
+        'ougc_fileprofilefields_files',
+        $queryFields,
+        implode(' AND ', $whereClauses),
+        $queryOptions
+    );
 
     $filesObjects = [];
 
@@ -699,7 +705,10 @@ function getProfileFieldsCache(): array
     global $mybb;
     global $profiecats;
 
-    if (class_exists('OUGC_ProfiecatsCache') && $profiecats instanceof OUGC_ProfiecatsCache) {
+    if (
+        class_exists('OUGC_ProfiecatsCache') && $profiecats instanceof OUGC_ProfiecatsCache &&
+        !empty($profiecats->cache['original'])
+    ) {
         return $profiecats->cache['original'];
     }
 
@@ -832,7 +841,8 @@ function buildFileFields(
     string $templatePrefix,
     array &$userData,
     array &$profileFieldData,
-    string &$filePreview
+    string &$filePreview,
+    bool $resetFieldCode = false
 ): bool {
     $fieldType = explode("\n", $profileFieldData['type'], 2)[0] ?? '';
 
@@ -878,8 +888,10 @@ function buildFileFields(
 
     $ougc_fileprofilefields[$fieldIdentifier] = '';
 
-    if ($profileFieldData['ougc_fileprofilefields_customoutput']) {
+    if (!empty($profileFieldData['ougc_fileprofilefields_customoutput'])) {
         $filePreview = &$ougc_fileprofilefields[$fieldIdentifier];
+    } elseif (!empty($filePreview)) {
+        $filePreview = '';
     }
 
     $fieldLength = (int)$profileFieldData['length'];
@@ -954,7 +966,8 @@ function buildFileFields(
                 }
             }
 
-            if (!$profileFieldData['ougc_fileprofilefields_customoutput'] && in_array($templatePrefix, ['postbit'])) {
+            if (empty($profileFieldData['ougc_fileprofilefields_customoutput']) && in_array($templatePrefix, ['postbit']
+                )) {
                 $name = htmlspecialchars_uni($profileFieldData['name']);
 
                 $filePreview .= eval(getTemplate("{$templatePrefix}"));
@@ -1082,7 +1095,7 @@ function control_object(&$obj, $code)
     $checkstr = 'O:' . strlen($classname) . ':"' . $classname . '":';
     $checkstr_len = strlen($checkstr);
     if (substr($objserial, 0, $checkstr_len) == $checkstr) {
-        $vars = array();
+        $vars = [];
         // grab resources/object etc, stripping scope info from keys
         foreach ((array)$obj as $k => $v) {
             if ($p = strrpos($k, "\0")) {
@@ -1114,11 +1127,11 @@ if ($GLOBALS['db'] instanceof AbstractPdoDbDriver) {
     function control_db($code)
     {
         global $db;
-        $linkvars = array(
+        $linkvars = [
             'read_link' => $db->read_link,
             'write_link' => $db->write_link,
             'current_link' => $db->current_link,
-        );
+        ];
         unset($db->read_link, $db->write_link, $db->current_link);
         $lastResult = $GLOBALS['AbstractPdoDbDriver_lastResult_prop']->getValue($db);
         $GLOBALS['AbstractPdoDbDriver_lastResult_prop']->setValue($db, null); // don't let this block serialization

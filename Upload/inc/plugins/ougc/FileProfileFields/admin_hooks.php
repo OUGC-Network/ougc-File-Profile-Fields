@@ -36,9 +36,11 @@ use function ougc\FileProfileFields\Admin\_db_columns;
 use function ougc\FileProfileFields\Admin\_edits_apply;
 use function ougc\FileProfileFields\Admin\_edits_revert;
 use function ougc\FileProfileFields\Core\get_userfields;
+use function ougc\FileProfileFields\Core\getProfileFieldsCache;
 use function ougc\FileProfileFields\Core\load_language;
 use function ougc\FileProfileFields\Core\query_file;
 use function ougc\FileProfileFields\Core\getTemplate;
+use function ougc\FileProfileFields\Core\queryFilesMultiple;
 
 use const MYBB_ROOT;
 
@@ -143,7 +145,7 @@ function admin_formcontainer_output_row(array &$args): array
 
         load_language();
 
-        $pfcache = $cache->read('profilefields');
+        $pfcache = getProfileFieldsCache();
 
         if (is_array($pfcache)) {
             $fid = $profile_fields_cache[$args['options']['id']];
@@ -334,7 +336,7 @@ function admin_formcontainer_output_row(array &$args): array
             'fieldtype',
             $select_list,
             $mybb->get_input('fieldtype'),
-            array('id' => 'fieldtype')
+            ['id' => 'fieldtype']
         );
     }
 
@@ -617,6 +619,130 @@ function admin_page_output_footer(): bool
 				new Peeker($("#row_ougc_fileprofilefields_thumbnails input"), $("#row_ougc_fileprofilefields_thumbnailsdimns"), 1, true);
 		});
 	</script>';
+
+    return true;
+}
+
+function admin_tools_system_health_output_chmod_list(): bool
+{
+    global $mybb, $lang;
+    global $table, $errors;
+
+    load_language();
+
+    foreach (getProfileFieldsCache() as $profileFieldData) {
+        if (strpos($profileFieldData['type'], 'file') === false) {
+            continue;
+        }
+
+        $absolutePath = mk_path_abs($profileFieldData['ougc_fileprofilefields_directory']);
+
+        if (is_writable($absolutePath)) {
+            $message = "<span style=\"color: green;\">{$lang->writable}</span>";
+        } else {
+            $message = "<strong><span style=\"color: #C00\">{$lang->not_writable}</span></strong><br />{$lang->please_chmod_777}";
+
+            ++$errors;
+        }
+
+        $text = $lang->sprintf(
+            $lang->ougc_fileprofilefields_admin_health_directory_writeable,
+            $profileFieldData['name']
+        );
+
+        $table->construct_cell("<strong>{$text}</strong>");
+
+        $table->construct_cell($profileFieldData['ougc_fileprofilefields_directory']);
+
+        $table->construct_cell($message);
+
+        $table->construct_row();
+    }
+
+    return true;
+}
+
+function admin_tools_do_recount_rebuild(): bool
+{
+    global $mybb;
+
+    if (!isset($mybb->input['ougcFileProfileFieldsUsersFieldsTableDo'])) {
+        return false;
+    }
+
+    if ($mybb->get_input('page', MyBB::INPUT_INT) === 1) {
+        log_admin_action('ougcFileProfileFieldsUsersFieldsTableLimit');
+    }
+
+    $queryLimit = $mybb->get_input('ougcFileProfileFieldsUsersFieldsTableLimit', MyBB::INPUT_INT);
+
+    if ($queryLimit <= 0) {
+        $mybb->input['ougcFileProfileFieldsUsersFieldsTableLimit'] = 50;
+    }
+
+    global $db, $mybb, $lang;
+
+    $fileObjects = queryFilesMultiple([], 'COUNT(aid) as totalFiles', ['limit' => 1]);
+
+    $totalFiles = $fileObjects[0]['totalFiles'] ?? 0;
+
+    $page = $mybb->get_input('page', MyBB::INPUT_INT);
+
+    $startPage = ($page - 1) * $queryLimit;
+
+    $endPage = $startPage + $queryLimit;
+
+    foreach (
+        queryFilesMultiple(
+            [],
+            '*',
+            ['limit' => $queryLimit, 'limit_start' => $startPage]
+        ) as $fileData
+    ) {
+        $userID = (int)$fileData['uid'];
+
+        $fieldID = (int)$fileData['fid'];
+
+        $db->update_query('userfields', ["fid{$fieldID}" => (int)$fileData['aid']], "ufid='{$userID}'");
+    }
+
+    check_proceed(
+        $totalFiles,
+        $endPage,
+        ++$page,
+        $queryLimit,
+        'ougcFileProfileFieldsUsersFieldsTableLimit',
+        'ougcFileProfileFieldsUsersFieldsTableDo',
+        $lang->success_rebuilt_forum_counters
+    );
+
+    return true;
+}
+
+function admin_tools_recount_rebuild_output_list(): bool
+{
+    global $lang;
+    global $form, $form_container;
+
+    load_language();
+
+    $form_container->output_cell(
+        "<label>{$lang->ougc_fileprofilefields_admin_rebuild_user_fields_data}</label><div class=\"description\">{$lang->ougc_fileprofilefields_admin_rebuild_user_fields_data_desc}</div>"
+    );
+
+    $form_container->output_cell(
+        $form->generate_numeric_field(
+            'ougcFileProfileFieldsUsersFieldsTableLimit',
+            50,
+            ['style' => 'width: 150px;', 'min' => 0]
+        )
+    );
+
+    $form_container->output_cell(
+        $form->generate_submit_button($lang->go, ['name' => 'ougcFileProfileFieldsUsersFieldsTableDo'])
+    );
+
+    $form_container->construct_row();
 
     return true;
 }

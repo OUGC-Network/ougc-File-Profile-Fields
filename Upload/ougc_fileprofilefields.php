@@ -29,6 +29,7 @@
 declare(strict_types=1);
 
 // Set to true to load the full global.php file
+use function ougc\FileProfileFields\Core\getProfileFieldsCache;
 use function ougc\FileProfileFields\Core\load_language;
 use function ougc\FileProfileFields\Core\query_file;
 
@@ -53,7 +54,7 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
 
     $errorFunction = 'error';
 } else {
-    $shutdown_queries = $shutdown_functions = array();
+    $shutdown_queries = $shutdown_functions = [];
 
     require_once $working_dir . '/inc/init.php';
 
@@ -98,7 +99,7 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
 
             $db->update_query(
                 'users',
-                array('language' => $db->escape_string($mybb->settings['bblanguage'])),
+                ['language' => $db->escape_string($mybb->settings['bblanguage'])],
                 "uid = '{$mybb->user['uid']}'"
             );
         } // Guest = cookie
@@ -164,7 +165,7 @@ if (empty($attachtype['ougc_fileprofilefields']) || !is_member($attachtype['grou
     $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
-$profilefields = $cache->read('profilefields');
+$profilefields = getProfileFieldsCache();
 
 $profilefield = null;
 
