@@ -51,8 +51,8 @@ function _info()
         'website' => 'https://ougc.network',
         'author' => 'Omar G.',
         'authorsite' => 'https://ougc.network',
-        'version' => '1.8.2',
-        'versioncode' => 1802,
+        'version' => '1.8.3',
+        'versioncode' => 1803,
         'compatibility' => '18*',
         'codename' => 'ougc_fileprofilefields',
         'pl' => [
