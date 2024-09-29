@@ -61,7 +61,7 @@ const TEMPLATE_SECTION_MEMBER_LIST = 'memberList';
 
 const URL = 'modcp.php';
 
-function load_language()
+function load_language(): bool
 {
     global $lang;
 
@@ -72,9 +72,11 @@ function load_language()
             $lang->load('ougc_fileprofilefields', true);
         }
     }
+
+    return true;
 }
 
-function load_pluginlibrary(bool $check = true)
+function load_pluginlibrary(bool $check = true): bool
 {
     global $PL, $lang;
 
@@ -87,7 +89,7 @@ function load_pluginlibrary(bool $check = true)
     }
 
     if (!$check) {
-        return;
+        return false;
     }
 
     $_info = _info();
@@ -100,9 +102,11 @@ function load_pluginlibrary(bool $check = true)
 
         admin_redirect('index.php?module=config-plugins');
     }
+
+    return true;
 }
 
-function addHooks(string $namespace)
+function addHooks(string $namespace): bool
 {
     global $plugins;
 
@@ -126,6 +130,8 @@ function addHooks(string $namespace)
             $plugins->add_hook($hookName, $callable, $priority);
         }
     }
+
+    return true;
 }
 
 function getSetting(string $settingKey = '')
@@ -180,9 +186,9 @@ function urlHandler(string $newUrl = ''): string
     return $setUrl;
 }
 
-function urlHandlerSet(string $newUrl)
+function urlHandlerSet(string $newUrl): string
 {
-    urlHandler($newUrl);
+    return urlHandler($newUrl);
 }
 
 function urlHandlerGet(): string
@@ -201,7 +207,7 @@ function urlHandlerBuild(array $urlAppend = [], bool $fetchImportUrl = false, bo
     return $PL->url_append(urlHandlerGet(), $urlAppend, '&amp;', $encode);
 }
 
-function store_file(array $insert_data)
+function store_file(array $insert_data): int
 {
     global $db, $plugins;
 
@@ -243,28 +249,30 @@ function store_file(array $insert_data)
     } else {
         $clean_data['uploaddate'] = TIME_NOW;
 
-        $aid = $db->insert_query('ougc_fileprofilefields_files', $clean_data);
+        $aid = (int)$db->insert_query('ougc_fileprofilefields_files', $clean_data);
     }
 
     return $aid;
 }
 
-function query_file(int $aid)
+function query_file(int $aid): array
 {
     global $db;
 
-    $aid = (int)$aid;
-
     $query = $db->simple_select('ougc_fileprofilefields_files', '*', "aid='{$aid}'");
 
-    return $db->fetch_array($query);
+    if ($db->num_rows($query)) {
+        return $db->fetch_array($query);
+    }
+
+    return [];
 }
 
 function queryFilesMultiple(
     array $whereClauses,
     string $queryFields = 'aid, uid, muid, fid, filename, filesize, filemime, name, downloads, thumbnail, dimensions, md5hash, uploaddate, updatedate, status',
     array $queryOptions = []
-) {
+): array {
     global $db;
 
     $dbQuery = $db->simple_select(
@@ -290,7 +298,7 @@ function queryFilesMultiple(
     return $filesObjects;
 }
 
-function upload_file(int $uid, array $profilefield)
+function upload_file(int $uid, array $profilefield): array
 {
     global $db, $mybb, $lang, $plugins;
 
@@ -612,7 +620,7 @@ function upload_file(int $uid, array $profilefield)
     return $ret_data;
 }
 
-function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [])
+function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = []): bool
 {
     global $plugins;
 
@@ -660,9 +668,11 @@ function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [
     }
 
     $hook_arguments = $plugins->run_hooks('ougc_fileprofilefields_remove_files_end', $hook_arguments);
+
+    return true;
 }
 
-function delete_file(int $uid, array $profilefield)
+function delete_file(int $uid, array $profilefield): bool
 {
     global $db, $mybb;
 
@@ -679,9 +689,11 @@ function delete_file(int $uid, array $profilefield)
     $db->delete_query('ougc_fileprofilefields_files', "uid='{$uid}' AND fid='{$fid}'");
 
     $db->update_query('userfields', ["fid{$fid}" => ''], "ufid='{$uid}'");
+
+    return true;
 }
 
-function reset_file(int $uid, array $profilefield)
+function reset_file(int $uid, array $profilefield): bool
 {
     global $db, $mybb;
 
@@ -694,11 +706,13 @@ function reset_file(int $uid, array $profilefield)
         'uploaddate' => TIME_NOW,
         'updatedate' => TIME_NOW
     ], "uid='{$uid}' AND fid='{$fid}'");
+
+    return true;
 }
 
-function get_userfields(int $uid)
+function get_userfields(int $uid): array
 {
-    static $user_cache = null;
+    static $user_cache = [];
 
     $uid = (int)$uid;
 
@@ -707,7 +721,11 @@ function get_userfields(int $uid)
 
         $query = $db->simple_select('userfields', '*', "ufid='{$uid}'");
 
-        $user_cache[$uid] = $db->fetch_array($query);
+        if ($db->num_rows($query)) {
+            $user_cache[$uid] = $db->fetch_array($query);
+        } else {
+            $user_cache[$uid] = [];
+        }
     }
 
     return $user_cache[$uid];
