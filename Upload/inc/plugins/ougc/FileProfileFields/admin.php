@@ -33,13 +33,11 @@ namespace ougc\FileProfileFields\Admin;
 use DirectoryIterator;
 
 use function ougc\FileProfileFields\Core\load_language;
-
 use function ougc\FileProfileFields\Core\load_pluginlibrary;
 
-use const MYBB_ROOT;
 use const ougc\FileProfileFields\Core\ROOT;
 
-function _info()
+function _info(): array
 {
     global $lang;
 
@@ -51,8 +49,8 @@ function _info()
         'website' => 'https://ougc.network',
         'author' => 'Omar G.',
         'authorsite' => 'https://ougc.network',
-        'version' => '1.8.2',
-        'versioncode' => 1802,
+        'version' => '1.8.3',
+        'versioncode' => 1803,
         'compatibility' => '18*',
         'codename' => 'ougc_fileprofilefields',
         'pl' => [
@@ -62,7 +60,7 @@ function _info()
     ];
 }
 
-function _activate()
+function _activate(): bool
 {
     global $PL, $lang, $cache, $db;
 
@@ -159,26 +157,6 @@ function _activate()
 
     _db_verify_columns();
 
-    require_once MYBB_ROOT . '/inc/adminfunctions_templates.php';
-
-    find_replace_templatesets(
-        'usercp_profile',
-        '#' . preg_quote('method="post" name="input"') . '#',
-        'method="post" name="input" enctype="multipart/form-data"'
-    );
-
-    find_replace_templatesets(
-        'modcp_editprofile',
-        '#' . preg_quote('action="modcp.php" method="post"') . '#',
-        'action="modcp.php" method="post" enctype="multipart/form-data"'
-    );
-
-    find_replace_templatesets(
-        'modcp_nav',
-        '#' . preg_quote('{$modcp_nav_users}') . '#',
-        '{$modcp_nav_users}<!--OUGC_FILEPROFILEFIELDS-->'
-    );
-
     /*~*~* RUN UPDATES START *~*~*/
 
     /*~*~* RUN UPDATES END *~*~*/
@@ -186,29 +164,27 @@ function _activate()
     $plugins['fileprofilefields'] = $_info['versioncode'];
 
     $cache->update('ougc_plugins', $plugins);
+
+    return true;
 }
 
-function _deactivate()
+function _deactivate(): bool
 {
-    require_once MYBB_ROOT . '/inc/adminfunctions_templates.php';
-
-    find_replace_templatesets('usercp_profile', '#' . preg_quote('enctype="multipart/form-data"') . '#i', '', 0);
-
-    find_replace_templatesets('modcp_editprofile', '#' . preg_quote('enctype="multipart/form-data"') . '#i', '', 0);
-
-    find_replace_templatesets('modcp_nav', '#' . preg_quote('<!--OUGC_FILEPROFILEFIELDS-->') . '#i', '', 0);
+    return true;
 }
 
-function _install()
+function _install(): bool
 {
     global $cache, $db;
 
     _db_verify_tables();
 
     _db_verify_columns();
+
+    return true;
 }
 
-function _is_installed()
+function _is_installed(): bool
 {
     static $installed = null;
 
@@ -225,7 +201,7 @@ function _is_installed()
     return $installed;
 }
 
-function _uninstall()
+function _uninstall(): bool
 {
     global $db, $PL, $cache;
 
@@ -258,16 +234,17 @@ function _uninstall()
     } else {
         $cache->delete('ougc_plugins');
     }
+
+    return true;
 }
 
-// List of tables
-function _db_tables()
+function _db_tables(): array
 {
     return [
         'ougc_fileprofilefields_files' => [
             'aid' => 'int UNSIGNED NOT NULL AUTO_INCREMENT',
             'uid' => 'int UNSIGNED NOT NULL',
-            'muid' => 'int UNSIGNED NOT NULL',
+            'muid' => 'int UNSIGNED NOT NULL DEFAULT 0',
             'fid' => 'int UNSIGNED NOT NULL',
             'filename' => "varchar(255) NOT NULL DEFAULT ''",
             'filesize' => "int(10) NOT NULL DEFAULT '0'",
@@ -294,8 +271,7 @@ function _db_tables()
     ];
 }
 
-// List of columns
-function _db_columns()
+function _db_columns(): array
 {
     return [
         'profilefields' => [
@@ -315,8 +291,7 @@ function _db_columns()
     ];
 }
 
-// Verify DB indexes
-function _db_verify_indexes()
+function _db_verify_indexes(): bool
 {
     global $db;
 
@@ -335,10 +310,11 @@ function _db_verify_indexes()
             }
         }
     }
+
+    return true;
 }
 
-// Verify DB tables
-function _db_verify_tables()
+function _db_verify_tables(): bool
 {
     global $db;
 
@@ -375,10 +351,11 @@ function _db_verify_tables()
     }
 
     _db_verify_indexes();
+
+    return true;
 }
 
-// Verify DB columns
-function _db_verify_columns()
+function _db_verify_columns(): bool
 {
     global $db;
 
@@ -391,9 +368,11 @@ function _db_verify_columns()
             }
         }
     }
+
+    return true;
 }
 
-function _edits_description()
+function _edits_description(): string
 {
     global $cache;
 
@@ -401,99 +380,95 @@ function _edits_description()
 
     $edits_desc = '';
 
-    if (_is_installed() && !empty($plugins['active']['ougc_fileprofilefields'])) {
-        global $PL, $mybb, $page, $lang;
+    if (!_is_installed() || empty($plugins['active']['ougc_fileprofilefields'])) {
+        return $edits_desc;
+    }
 
-        load_pluginlibrary(false);
+    global $PL, $mybb, $page, $lang;
 
-        $_edits_apply = $_edits_revert = false;
+    load_pluginlibrary(false);
 
-        // Check edits to core files.
-        if (_edits_apply() !== true) {
-            $_edits_apply = $lang->sprintf(
-                $lang->ougc_fileprofilefields_edits_apply,
-                $PL->url_append('index.php', [
-                    'module' => 'config-plugins',
-                    'ougc_fileprofilefields' => 'apply',
-                    'my_post_key' => $mybb->post_code
-                ])
-            );
-        }
+    $_edits_apply = $_edits_revert = false;
 
-        if ($_edits_apply) {
-            $edits_desc .= "<ul><li style=\"list-style-image: url('styles/{$page->style}/images/icons/error.png')\">{$_edits_apply}</li></ul>";
-        }
+    // Check edits to core files.
+    if (_edits_apply() !== true) {
+        $_edits_apply = $lang->sprintf(
+            $lang->ougc_fileprofilefields_edits_apply,
+            $PL->url_append('index.php', [
+                'module' => 'config-plugins',
+                'ougc_fileprofilefields' => 'apply',
+                'my_post_key' => $mybb->post_code
+            ])
+        );
+    }
 
-        // Check edits to core files.
-        if (_edits_revert() !== true) {
-            $_edits_revert = $lang->sprintf(
-                $lang->ougc_fileprofilefields_edits_revert,
-                $PL->url_append('index.php', [
-                    'module' => 'config-plugins',
-                    'ougc_fileprofilefields' => 'revert',
-                    'my_post_key' => $mybb->post_code
-                ])
-            );
-        }
+    if ($_edits_apply) {
+        $edits_desc .= "<ul><li style=\"list-style-image: url('styles/{$page->style}/images/icons/error.png')\">{$_edits_apply}</li></ul>";
+    }
 
-        if ($_edits_revert) {
-            $edits_desc .= "<ul><li style=\"list-style-image: url('styles/{$page->style}/images/icons/success.png')\">{$_edits_revert}</li></ul>";
-        }
+    // Check edits to core files.
+    if (_edits_revert() !== true) {
+        $_edits_revert = $lang->sprintf(
+            $lang->ougc_fileprofilefields_edits_revert,
+            $PL->url_append('index.php', [
+                'module' => 'config-plugins',
+                'ougc_fileprofilefields' => 'revert',
+                'my_post_key' => $mybb->post_code
+            ])
+        );
+    }
+
+    if ($_edits_revert) {
+        $edits_desc .= "<ul><li style=\"list-style-image: url('styles/{$page->style}/images/icons/success.png')\">{$_edits_revert}</li></ul>";
     }
 
     return $edits_desc;
 }
 
-function _edits_apply($apply = false)
+function _edits_apply(bool $apply = false): bool
 {
     global $PL;
 
     load_pluginlibrary(false);
 
-    $member_edits = $PL->edit_core('ougc_plugins_customfields_start', 'member.php', [
-        'search' => ['if(isset($userfields[$field]))'],
-        'before' => ['$plugins->run_hooks(\'ougc_plugins_customfields_profile_start\');'],
-    ], $apply);
-
-    $postbit_edits = $PL->edit_core('ougc_plugins_customfields_start', 'inc/functions_post.php', [
-        'search' => ['$fieldfid = "fid{$field[\'fid\']}";'],
-        'before' => [
-            '$args = [
-				\'post\' => &$post,
-				\'field\' => &$field
+    if ($PL->edit_core('ougc_plugins_customfields_start', 'member.php', [
+            'search' => ['if(isset($userfields[$field]))'],
+            'before' => [
+                '$hookArguments = [
+				\'userData\' => &$userfields,
+				\'profileFieldData\' => &$customfield,
+				\'fieldCode\' => &$customfieldval
 			];
 			
-			$plugins->run_hooks(\'ougc_plugins_customfields_postbit_start\', $args);',
-        ],
-    ], $apply);
+			$plugins->run_hooks(\'ougc_file_profile_fields_profile\', $hookArguments);'
+            ],
+        ], $apply) !== true) {
+        return false;
+    }
 
-    //TODO, control_object() could take care of thse two hook
-    $usercp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'usercp.php', [
-        'search' => ['if($profilefield[\'required\'] == 1)'],
-        'before' => ['$plugins->run_hooks(\'ougc_plugins_customfields_usercp_end\');'],
-    ], $apply);
+    if ($PL->edit_core('ougc_plugins_customfields_start', 'inc/functions_post.php', [
+            'search' => ['eval("\$post[\'profilefield\'] .= \"".$templates->get("postbit_profilefield")."\";");'],
+            'before' => [
+                '$hookArguments = [
+				\'userData\' => &$post,
+				\'profileFieldData\' => &$field
+			];
+			
+			$plugins->run_hooks(\'ougc_file_profile_fields_post_start\', $hookArguments);',
+            ],
+        ], $apply) !== true) {
+        return false;
+    }
 
-    $modcp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'modcp.php', [
-        'search' => ['if($profilefield[\'required\'] == 1)'],
-        'before' => ['$plugins->run_hooks(\'ougc_plugins_customfields_modcp_end\');'],
-    ], $apply);
-
-    return $member_edits === true && $postbit_edits === true && $usercp_edits === true && $modcp_edits === true;
+    return true;
 }
 
-function _edits_revert($apply = false)
+function _edits_revert(bool $apply = false): bool
 {
     global $PL;
 
     load_pluginlibrary(false);
 
-    $member_edits = $PL->edit_core('ougc_plugins_customfields_start', 'member.php', [], $apply);
-
-    $postbit_edits = $PL->edit_core('ougc_plugins_customfields_start', 'inc/functions_post.php', [], $apply);
-
-    $usercp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'usercp.php', [], $apply);
-
-    $modcp_edits = $PL->edit_core('ougc_plugins_customfields_end', 'modcp.php', [], $apply);
-
-    return $member_edits === true && $postbit_edits === true && $usercp_edits === true && $modcp_edits === true;
+    return $PL->edit_core('ougc_plugins_customfields_start', 'member.php', [], $apply) === true &&
+        $PL->edit_core('ougc_plugins_customfields_start', 'inc/functions_post.php', [], $apply) === true;
 }

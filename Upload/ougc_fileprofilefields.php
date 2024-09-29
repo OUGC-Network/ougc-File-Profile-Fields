@@ -29,6 +29,8 @@
 declare(strict_types=1);
 
 // Set to true to load the full global.php file
+use function ougc\FileProfileFields\Core\getProfileFieldsCache;
+use function ougc\FileProfileFields\Core\load_language;
 use function ougc\FileProfileFields\Core\query_file;
 
 const OUGC_FILEPROFILEFIELDS_FULL = false;
@@ -49,8 +51,10 @@ global $cache, $mybb, $db, $lang, $plugins;
 
 if (OUGC_FILEPROFILEFIELDS_FULL) {
     require_once $working_dir . '/global.php';
+
+    $errorFunction = 'error';
 } else {
-    $shutdown_queries = $shutdown_functions = array();
+    $shutdown_queries = $shutdown_functions = [];
 
     require_once $working_dir . '/inc/init.php';
 
@@ -78,11 +82,11 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
 
     $mybb->session = &$session;
 
-    $mybb->user['ismoderator'] = is_moderator(0, '', $mybb->user['uid']);
+    $mybb->user['ismoderator'] = is_moderator();
 
     $mybb->post_code = generate_post_check();
 
-    if (isset($mybb->input['language']) && $lang->language_exists($mybb->get_input('language')) && verify_post_check(
+    if ($mybb->get_input('language') && $lang->language_exists($mybb->get_input('language')) && verify_post_check(
             $mybb->get_input('my_post_key'),
             true
         )) {
@@ -95,7 +99,7 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
 
             $db->update_query(
                 'users',
-                array('language' => $db->escape_string($mybb->settings['bblanguage'])),
+                ['language' => $db->escape_string($mybb->settings['bblanguage'])],
                 "uid = '{$mybb->user['uid']}'"
             );
         } // Guest = cookie
@@ -117,13 +121,17 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
 
     $lang->load('messages');
 
-    if ($mybb->cookies['lockoutexpiry'] && $mybb->cookies['lockoutexpiry'] < TIME_NOW) {
+    if (!empty($mybb->cookies['lockoutexpiry']) && $mybb->cookies['lockoutexpiry'] < TIME_NOW) {
         my_unsetcookie('lockoutexpiry');
     }
+
+    $errorFunction = 'errorCustom';
 }
 
+load_language();
+
 if (!function_exists('ougc_fileprofilefields_info')) {
-    error($lang->ougc_fileprofilefields_errors_deactivated);
+    $errorFunction($lang->ougc_fileprofilefields_errors_deactivated);
 }
 
 // Find the AID we're looking for
@@ -134,13 +142,13 @@ if ($thumbnail) {
 }
 
 if (!($file = query_file($aid))) {
-    error($lang->ougc_fileprofilefields_errors_invalid_file);
+    $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
 $plugins->run_hooks('ougc_fileprofilefields_download_start');
 
 if (!$file['thumbnail'] && $thumbnail) {
-    error($lang->ougc_fileprofilefields_errors_invalid_thumbnail);
+    $errorFunction($lang->ougc_fileprofilefields_errors_invalid_thumbnail);
 }
 
 $attachtypes = $cache->read('attachtypes');
@@ -148,16 +156,16 @@ $attachtypes = $cache->read('attachtypes');
 $ext = get_extension($file['filename']);
 
 if (empty($attachtypes[$ext])) {
-    error($lang->ougc_fileprofilefields_errors_invalid_file);
+    $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
 $attachtype = $attachtypes[$ext];
 
 if (empty($attachtype['ougc_fileprofilefields']) || !is_member($attachtype['groups'])) {
-    error($lang->ougc_fileprofilefields_errors_invalid_file);
+    $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
-$profilefields = $cache->read('profilefields');
+$profilefields = getProfileFieldsCache();
 
 $profilefield = null;
 
@@ -181,13 +189,13 @@ if (
         empty($profilefield['ougc_fileprofilefields_thumbnails'])
     )
 ) {
-    error($lang->ougc_fileprofilefields_errors_invalid_file);
+    $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
 $file['status'] = (int)$file['status'];
 
 if ($file['status'] !== 1 && !is_member($mybb->settings['ougc_fileprofilefields_groups_moderators'])) {
-    error($lang->ougc_fileprofilefields_errors_invalid_file);
+    $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
 $file['filename'] = ltrim(basename(' ' . $file['filename']));
@@ -242,7 +250,7 @@ if ($thumbnail) {
     $filepath = MYBB_ROOT . "{$profilefield['ougc_fileprofilefields_directory']}/{$file['thumbnail']}";
 
     if (!file_exists($filepath)) {
-        error($lang->ougc_fileprofilefields_errors_invalid_file);
+        $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
     }
 
     $ext = get_extension($file['thumbnail']);
@@ -265,7 +273,7 @@ if ($thumbnail) {
     $filepath = MYBB_ROOT . "{$profilefield['ougc_fileprofilefields_directory']}/{$file['name']}";
 
     if (!file_exists($filepath)) {
-        error($lang->ougc_fileprofilefields_errors_invalid_thumbnail);
+        $errorFunction($lang->ougc_fileprofilefields_errors_invalid_thumbnail);
     }
 
     $ext = get_extension($file['thumbnail']);
@@ -319,4 +327,13 @@ if ($thumbnail) {
     }
 
     fclose($handle);
+}
+
+function errorCustom(string $errorMessage)
+{
+    http_response_code(404);
+
+    echo $errorMessage;
+
+    exit;
 }

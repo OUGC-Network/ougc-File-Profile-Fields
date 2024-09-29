@@ -47,12 +47,20 @@ use const ougc\FileProfileFields\Core\ROOT;
 
 defined('IN_MYBB') || die('This file cannot be accessed directly.');
 
+// You can uncomment the lines below to avoid storing some settings in the DB
+define('ougc\FileProfileFields\Core\SETTINGS', [
+    //'key' => '',
+    'fileName' => 'ougc_fileprofilefields.php',
+]);
+
+define('ougc\FileProfileFields\Core\DEBUG', false);
+
 define('ougc\FileProfileFields\Core\ROOT', MYBB_ROOT . 'inc/plugins/ougc/FileProfileFields');
 
 require_once ROOT . '/core.php';
 
 // PLUGINLIBRARY
-defined('PLUGINLIBRARY') or define('PLUGINLIBRARY', MYBB_ROOT . 'inc/plugins/pluginlibrary.php');
+defined('PLUGINLIBRARY') || define('PLUGINLIBRARY', MYBB_ROOT . 'inc/plugins/pluginlibrary.php');
 
 // Add our hooks
 if (defined('IN_ADMINCP')) {

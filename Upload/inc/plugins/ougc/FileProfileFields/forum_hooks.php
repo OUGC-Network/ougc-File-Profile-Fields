@@ -32,31 +32,32 @@ namespace ougc\FileProfileFields\Hooks\Forum;
 
 use MyBB;
 
-use function ougc\FileProfileFields\Core\build_url;
+use UserDataHandler;
 
+use function ougc\FileProfileFields\Core\buildFileFields;
+use function ougc\FileProfileFields\Core\control_object;
+use function ougc\FileProfileFields\Core\getProfileFieldsCache;
+use function ougc\FileProfileFields\Core\getSetting;
+use function ougc\FileProfileFields\Core\urlHandlerBuild;
 use function ougc\FileProfileFields\Core\delete_file;
-
 use function ougc\FileProfileFields\Core\get_userfields;
-
 use function ougc\FileProfileFields\Core\load_language;
-
 use function ougc\FileProfileFields\Core\query_file;
-
+use function ougc\FileProfileFields\Core\queryFilesMultiple;
 use function ougc\FileProfileFields\Core\remove_files;
-
+use function ougc\FileProfileFields\Core\renderUserFile;
 use function ougc\FileProfileFields\Core\reset_file;
-
-use function ougc\FileProfileFields\Core\set_url;
-
+use function ougc\FileProfileFields\Core\urlHandlerSet;
 use function ougc\FileProfileFields\Core\store_file;
-
 use function ougc\FileProfileFields\Core\upload_file;
+use function ougc\FileProfileFields\Core\getTemplate;
 
+use const ougc\FileProfileFields\Core\TEMPLATE_SECTION_MEMBER_LIST;
 use const TIME_NOW;
 
-function global_start09()
+function global_start09(): bool
 {
-    global $templatelist, $cache;
+    global $templatelist;
 
     if (!isset($templatelist)) {
         $templatelist = '';
@@ -64,48 +65,39 @@ function global_start09()
         $templatelist .= ',';
     }
 
-    if (!defined('THIS_SCRIPT')) {
-        return;
-    }
+    if (in_array(
+        THIS_SCRIPT,
+        ['showthread.php', 'private.php', 'newthread.php', 'newreply.php', 'editpost.php', 'member.php', 'usercp.php']
+    )) {
+        $pfcache = getProfileFieldsCache();
 
-    $load_custom = false;
+        if ($pfcache) {
+            $mainPrefix = 'ougcfileprofilefields_';
 
-    if (in_array(THIS_SCRIPT, ['showthread.php', 'private.php', 'newthread.php', 'newreply.php', 'editpost.php'])) {
-        $load_custom = 'postbit';
+            $templatePrefixes = ['profile', 'postBit', 'memberList', 'userControlPanel', 'moderatorControlPanel'];
 
-        $templatelist .= 'attachment_icon, ougcfileprofilefields_postbit, ougcfileprofilefields_postbit_file, ougcfileprofilefields_postbit_file_thumbnail, ougcfileprofilefields_postbit_status, ougcfileprofilefields_postbit_status_mod';
-    }
+            foreach ($pfcache as $profileFieldData) {
+                if (my_strpos($profileFieldData['type'], 'file') !== false) {
+                    $profileFieldID = (int)$profileFieldData['fid'];
 
-    if (THIS_SCRIPT == 'member.php') {
-        $load_custom = 'profile';
+                    foreach ($templatePrefixes as $templatePrefix) {
+                        $templatelist .= ", {$mainPrefix}{$templatePrefix}, {$mainPrefix}{$templatePrefix}Status, {$mainPrefix}{$templatePrefix}StatusModerator, {$mainPrefix}{$templatePrefix}Thumbnail";
 
-        $templatelist .= 'attachment_icon, ougcfileprofilefields_profile, ougcfileprofilefields_profile_file, ougcfileprofilefields_profile_file_thumbnail, ougcfileprofilefields_profile_status, ougcfileprofilefields_profile_status_mod';
-    }
-
-    if ($load_custom) {
-        $pfcache = $cache->read('profilefields');
-
-        if (is_array($pfcache)) {
-            foreach ($pfcache as $profilefield) {
-                if (my_strpos($profilefield['type'], 'file') !== false) {
-                    $fid = (int)$profilefield['fid'];
-
-                    $templatelist .= ", ougcfileprofilefields_{$load_custom}_file_{$fid}, ougcfileprofilefields_{$load_custom}_file_thumbnail_{$fid}";
+                        $templatelist .= ", {$mainPrefix}{$templatePrefix}Field{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusField{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusModeratorField{$profileFieldID}, {$mainPrefix}{$templatePrefix}ThumbnailField{$profileFieldID}";
+                    }
                 }
             }
         }
     }
 
-    if (THIS_SCRIPT == 'usercp.php') {
-        $templatelist .= 'attachment_icon, ougcfileprofilefields_usercp, ougcfileprofilefields_usercp_file, ougcfileprofilefields_usercp_file_thumbnail, ougcfileprofilefields_usercp_status, ougcfileprofilefields_usercp_status_mod, ougcfileprofilefields_usercp_remove, ougcfileprofilefields_usercp_update';
+    if (THIS_SCRIPT == 'modcp.php') {
+        $templatelist .= 'ougcfileprofilefields_modcp_nav, attachment_icon, ougcfileprofilefields_modcp, ougcfileprofilefields_modcp_file, ougcfileprofilefields_modcp_status, ougcfileprofilefields_modcp_status_mod, ougcfileprofilefields_modcp_remove, ougcfileprofilefields_modcp_update, ougcfileprofilefields_modcp_filter_option, ougcfileprofilefields_modcp_multipage, ougcfileprofilefields_modcp_files_file, ougcfileprofilefields_modcp_files, ougcfileprofilefields_modcp_logs_log, ougcfileprofilefields_modcp_logs, ougcfileprofilefields_modcp_page';
     }
 
-    if (THIS_SCRIPT == 'modcp.php') {
-        $templatelist .= 'ougcfileprofilefields_modcp_nav, attachment_icon, ougcfileprofilefields_modcp, ougcfileprofilefields_modcp_file, ougcfileprofilefields_modcp_file_thumbnail, ougcfileprofilefields_modcp_status, ougcfileprofilefields_modcp_status_mod, ougcfileprofilefields_modcp_remove, ougcfileprofilefields_modcp_update, ougcfileprofilefields_modcp_filter_option, ougcinvitesystem_content_multipage, ougcfileprofilefields_modcp_files_file, ougcfileprofilefields_modcp_files, ougcfileprofilefields_modcp_logs_log, ougcfileprofilefields_modcp_logs, ougcfileprofilefields_modcp_page';
-    }
+    return true;
 }
 
-function datahandler_user_validate(&$dh)
+function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
 {
     global $db, $cache, $mybb, $lang;
     global $ougcFileProfileFieldsObjects;
@@ -123,9 +115,9 @@ function datahandler_user_validate(&$dh)
     // Loop through profile fields checking if they exist or not and are filled in.
 
     // Fetch all profile fields first.
-    $pfcache = $cache->read('profilefields');
+    $pfcache = getProfileFieldsCache();
 
-    if (is_array($pfcache)) {
+    if ($pfcache) {
         $remove_aids = array_filter(
             array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
         );
@@ -135,37 +127,37 @@ function datahandler_user_validate(&$dh)
         $original_values = get_userfields($userID);
 
         // Then loop through the profile fields.
-        foreach ($pfcache as $profilefield) {
-            $profilefield['fid'] = (int)$profilefield['fid'];
+        foreach ($pfcache as $profileFieldData) {
+            $profileFieldData['fid'] = (int)$profileFieldData['fid'];
 
-            if (isset($dh->data['profile_fields_editable']) || isset($dh->data['registration']) && ($profilefield['required'] == 1 || $profilefield['registration'] == 1)) {
-                $profilefield['editableby'] = -1;
+            if (isset($dh->data['profile_fields_editable']) || isset($dh->data['registration']) && ($profileFieldData['required'] == 1 || $profileFieldData['registration'] == 1)) {
+                $profileFieldData['editableby'] = -1;
             }
 
             if (!is_member(
-                $profilefield['editableby'],
-                array('usergroup' => $user['usergroup'], 'additionalgroups' => $user['additionalgroups'])
+                $profileFieldData['editableby'],
+                get_user($user['uid'])
             )) {
                 continue;
             }
 
             // Does this field have a minimum post count?
-            if (!isset($dh->data['profile_fields_editable']) && !empty($profilefield['postnum']) && $profilefield['postnum'] > $user['postnum']) {
+            if (!isset($dh->data['profile_fields_editable']) && !empty($profileFieldData['postnum']) && $profileFieldData['postnum'] > $user['postnum']) {
                 continue;
             }
 
-            $profilefield['type'] = htmlspecialchars_uni($profilefield['type']);
-            $profilefield['name'] = htmlspecialchars_uni($profilefield['name']);
-            $thing = explode("\n", $profilefield['type'], 2);
+            $profileFieldData['type'] = htmlspecialchars_uni($profileFieldData['type']);
+            $profileFieldData['name'] = htmlspecialchars_uni($profileFieldData['name']);
+            $thing = explode("\n", $profileFieldData['type'], 2);
             $type = trim($thing[0]);
 
             if ($type != 'file') {
                 continue;
             }
 
-            $field = "fid{$profilefield['fid']}";
+            $field = "fid{$profileFieldData['fid']}";
 
-            $ougcFileProfileFieldsObjects[$profilefield['fid']] = false;
+            $ougcFileProfileFieldsObjects[$profileFieldData['fid']] = false;
 
             $user_fields[$field] = $original_values[$field];
 
@@ -179,58 +171,57 @@ function datahandler_user_validate(&$dh)
 
             // If the profile field is required, but not filled in, present error.
             if (
-                (!$process_file && empty($user_fields[$field]) || isset($remove_aids[$profilefield['fid']]) && !$process_file) &&
-                $profilefield['required'] &&
+                (!$process_file && empty($user_fields[$field]) || isset($remove_aids[$profileFieldData['fid']]) && !$process_file) &&
+                $profileFieldData['required'] &&
                 !defined('IN_ADMINCP') &&
                 THIS_SCRIPT != 'modcp.php'
             ) {
-                if (isset($remove_aids[$profilefield['fid']])) {
+                if (isset($remove_aids[$profileFieldData['fid']])) {
                     load_language();
 
                     $dh->set_error(
                         $lang->sprintf(
                             $lang->ougc_fileprofilefields_errors_remove,
-                            htmlspecialchars_uni($profilefield['name'])
+                            htmlspecialchars_uni($profileFieldData['name'])
                         )
                     );
                     // this might fail in ACP or because of get_user() not getting fields
                 } elseif (empty($_user[$field])) {
-                    $dh->set_error('missing_required_profile_field', array($profilefield['name']));
+                    $dh->set_error('missing_required_profile_field', [$profileFieldData['name']]);
                 }
             }
 
             if ($process_file) {
-                $profilefield !== null || _dump($profilefield);
-                $ougcFileProfileFieldsObjects[$profilefield['fid']] = upload_file($userID, $profilefield);
+                $ougcFileProfileFieldsObjects[$profileFieldData['fid']] = upload_file($userID, $profileFieldData);
 
-                if (!empty($ougcFileProfileFieldsObjects[$profilefield['fid']]['error'])) {
-                    $dh->set_error($ougcFileProfileFieldsObjects[$profilefield['fid']]['error']);
+                if (!empty($ougcFileProfileFieldsObjects[$profileFieldData['fid']]['error'])) {
+                    $dh->set_error($ougcFileProfileFieldsObjects[$profileFieldData['fid']]['error']);
                 }
 
                 if ($dh->errors) {
-                    unset($ougcFileProfileFieldsObjects[$profilefield['fid']]);
+                    unset($ougcFileProfileFieldsObjects[$profileFieldData['fid']]);
                 }
             }
 
-            if (!$dh->errors && isset($remove_aids[$profilefield['fid']])) {
+            if (!$dh->errors && isset($remove_aids[$profileFieldData['fid']])) {
                 if ($process_file) {
-                    reset_file($userID, $profilefield);
+                    reset_file($userID, $profileFieldData);
                 } else {
-                    delete_file($userID, $profilefield);
+                    delete_file($userID, $profileFieldData);
                 }
             }
         }
     }
 
-    return true;
+    return $dh;
 }
 
-function datahandler_user_update(&$dh)
+function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
 {
     global $ougcFileProfileFieldsObjects;
 
     if (empty($ougcFileProfileFieldsObjects)) {
-        return;
+        return $dh;
     }
 
     global $db, $plugins, $mybb;
@@ -244,8 +235,6 @@ function datahandler_user_update(&$dh)
             continue;
         }
 
-        $md5 = md5_file("{$file['uploadpath']}/{$file['name']}");
-
         $insert_data = [
             'uid' => (int)$user['uid'],
             'fid' => (int)$fid,
@@ -253,9 +242,9 @@ function datahandler_user_update(&$dh)
             'filesize' => (int)$file['filesize'],
             'filemime' => (string)$file['filemime'],
             'name' => (string)$file['name'],
-            'thumbnail' => (string)$file['thumbnail'],
-            'dimensions' => (string)$file['dimensions'],
-            'md5hash' => (string)$md5 ?: '',
+            'thumbnail' => $file['thumbnail'] ?? '',
+            'dimensions' => $file['dimensions'] ?? '',
+            'md5hash' => (string)$file['md5hash'] ?: '',
             'updatedate' => TIME_NOW
         ];
 
@@ -280,7 +269,7 @@ function datahandler_user_update(&$dh)
             'dh' => &$dh
         ];
 
-        $plugins->run_hooks('ougc_fileprofilefields_user_update', $args);
+        $args = $plugins->run_hooks('ougc_fileprofilefields_user_update', $args);
 
         if ($aid = store_file($insert_data)) {
             $user_fields["fid{$fid}"] = $db->escape_string($aid);
@@ -296,23 +285,25 @@ function datahandler_user_update(&$dh)
             );
         }
     }
+
+    return $dh;
 }
 
-function datahandler_user_delete_start(&$dh)
+function datahandler_user_delete_start(UserDataHandler &$dh): UserDataHandler
 {
     global $db, $cache;
 
     if (!$dh->delete_uids) {
-        return;
+        return $dh;
     }
 
-    $pfcache = $cache->read('profilefields');
+    $pfcache = getProfileFieldsCache();
 
     $profilefields_cache = [];
 
     if (!empty($pfcache)) {
-        foreach ($pfcache as $profilefield) {
-            $profilefields_cache[$profilefield['fid']] = $profilefield;
+        foreach ($pfcache as $profileFieldData) {
+            $profilefields_cache[$profileFieldData['fid']] = $profileFieldData;
         }
     }
 
@@ -327,249 +318,108 @@ function datahandler_user_delete_start(&$dh)
     $db->delete_query('ougc_fileprofilefields_files', "uid IN ('{$delete_uids}')");
 
     $db->delete_query('ougc_fileprofilefields_logs', "uid IN ('{$delete_uids}')");
+
+    return $dh;
 }
 
-function ougc_plugins_customfields_usercp_end80($section = 'usercp', &$args = [])
+function usercp_profile_start()
 {
-    if (!$section) {
-        $section = 'usercp';
+    global $templates;
+
+    control_object(
+        $templates,
+        'function get($title, $eslashes = 1, $htmlcomments = 1)
+{
+    if ($title === "usercp_profile_customfield") {
+        global $mybb, $plugins;
+        global $profilefield, $code;
+
+        $hookArguments = [
+            "profileFieldData" => &$profilefield,
+            "userData" => &$mybb->user,
+            "fieldCode" => &$code
+        ];
+        
+        $hookArguments = $plugins->run_hooks("ougc_file_profile_fields_user_control_panel", $hookArguments);
     }
 
-    global $mybb, $user_fields, $customfield, $maxlength, $code, $templates, $lang, $ougc_fileprofilefields, $profilefields;
-    global $field;
-
-    isset($ougc_fileprofilefields) || $ougc_fileprofilefields = [];
-
-    $aid = (int)$mybb->user[$field];
-
-    $preview = $remove = $update = $status = '';
-
-    $user = &$mybb->user;
-
-    if ($section == 'postbit') {
-        $aid = (int)$args['post'][$field];
-
-        if (isset($profilefields)) {
-            $preview = &$profilefields;
-        } else {
-            $preview = &$args['post']['profilefield'];
-        }
-
-        $profilefield = &$args['field'];
-
-        $type = trim(explode("\n", $profilefield['type'], 2)[0]);
-
-        $user = &$args['post'];
-    } else {
-        global $type, $field, $profilefield;
-
-        if ($section == 'profile') {
-            global $userfields, $customfieldval;
-
-            $preview = &$customfieldval;
-
-            $user = &$userfields;
-
-            $profilefield = &$customfield;
-        } elseif ($section == 'modcp' || defined('IN_ADMINCP')) {
-            $user = &$user_fields;
-        }
-    }
-
-    $fid = (int)$profilefield['fid'];
-
-    $field = "fid{$profilefield['fid']}";
-
-    if ($type != 'file') {
-        return;
-    }
-
-    $ougc_fileprofilefields[$field] = '';
-
-    if ($profilefield['ougc_fileprofilefields_customoutput']) {
-        $preview = &$ougc_fileprofilefields[$field];
-    }
-
-    $aid = (int)$user[$field];
-
-    $style = 'inherit';
-
-    $ismod = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
-
-    if ($aid && $file = query_file($aid)) {
-        $file['status'] = (int)$file['status'];
-
-        if (
-            $file['status'] === 1 ||
-            $ismod ||
-            !in_array($section, ['profile', 'postbit'])
-        ) {
-            $style = 'none';
-
-            load_language();
-
-            $ext = get_extension(my_strtolower($file['filename']));
-
-            $icon = get_attachment_icon($ext);
-
-            $filename = htmlspecialchars_uni($file['filename']);
-
-            $filesize = get_friendly_size($file['filesize']);
-
-            $downloads = my_number_format($file['downloads']);
-
-            $md5_hash = htmlspecialchars_uni($file['md5hash']);
-
-            $upload_date = my_date('normal', $file['uploaddate']);
-
-            $update_date = my_date('normal', $file['updatedate']);
-
-            // TODO: add option to reset downloads and upload date
-
-            $thumbnail = htmlspecialchars_uni($file['thumbnail']);
-
-            if ($file['status'] !== 1) {
-                $description = $lang->ougc_fileprofilefields_status_notification_onqueue;
-
-                if ($file['status'] === -1) {
-                    $description = $lang->ougc_fileprofilefields_status_notification_unapproved;
-                }
-
-                if ($ismod) {
-                    $status = eval($templates->render("ougcfileprofilefields_{$section}_status_mod"));
-                } else {
-                    $status = eval($templates->render("ougcfileprofilefields_{$section}_status"));
-                }
-            }
-
-            if (!$profilefield['ougc_fileprofilefields_customoutput'] && in_array($section, ['postbit'])) {
-                $name = htmlspecialchars_uni($profilefield['name']);
-
-                $preview .= eval($templates->render("ougcfileprofilefields_{$section}"));
-            }
-
-            if (
-                $file['thumbnail'] &&
-                $profilefield['ougc_fileprofilefields_imageonly'] &&
-                $profilefield['ougc_fileprofilefields_thumbnails'] &&
-                file_exists(MYBB_ROOT . "{$profilefield['ougc_fileprofilefields_directory']}/{$file['thumbnail']}")
-            ) {
-                $thumbnail_width = explode('|', $file['dimensions'])[0];
-
-                $thumbnail_height = explode('|', $file['dimensions'])[1];
-
-                $maximum_width = explode('|', $profilefield['ougc_fileprofilefields_thumbnailsdimns'])[0];
-
-                $maximum_height = explode('|', $profilefield['ougc_fileprofilefields_thumbnailsdimns'])[1];
-
-                if (!defined(
-                        'IN_ADMINCP'
-                    ) && isset($templates->cache["ougcfileprofilefields_{$section}_file_thumbnail_{$fid}"])) {
-                    $preview .= eval($templates->render("ougcfileprofilefields_{$section}_file_thumbnail_{$fid}"));
-                } else {
-                    $preview .= eval($templates->render("ougcfileprofilefields_{$section}_file_thumbnail"));
-                }
-            } elseif (!defined(
-                    'IN_ADMINCP'
-                ) && isset($templates->cache["ougcfileprofilefields_{$section}_file_{$fid}"])) {
-                $preview .= eval($templates->render("ougcfileprofilefields_{$section}_file_{$fid}"));
-            } else {
-                $preview .= eval($templates->render("ougcfileprofilefields_{$section}_file"));
-            }
-
-            if (!in_array($section, ['profile', 'postbit'])) {
-                $update_aids = array_filter(
-                    array_map('intval', $mybb->get_input('ougcfileprofilefields_update', MyBB::INPUT_ARRAY))
-                );
-
-                $checked = '';
-
-                if (isset($update_aids[$profilefield['fid']])) {
-                    $checked = ' checked="checked"';
-                }
-
-                $update = eval($templates->render("ougcfileprofilefields_{$section}_update"));
-
-                $remove_aids = array_filter(
-                    array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
-                );
-
-                $checked = '';
-
-                if (isset($remove_aids[$profilefield['fid']])) {
-                    $checked = ' checked="checked"';
-                }
-
-                $remove = eval($templates->render("ougcfileprofilefields_{$section}_remove"));
-            }
-
-            if (in_array($section, ['profile'])) {
-                $user[$field] = null;
-            }
-
-            if (in_array($section, ['postbit'])) {
-                $user[$field] = null;
-            }
-        } elseif (in_array($section, ['profile', 'postbit'])) {
-            $user[$field] = null;
-        }
-    } elseif (in_array($section, ['profile', 'postbit'])) {
-        $user[$field] = null;
-    }
-
-    if (!in_array($section, ['profile', 'postbit'])) {
-        load_language();
-
-        $attachcache = $mybb->cache->read('attachtypes');
-
-        $exts = $valid_mimes = [];
-
-        foreach ($attachcache as $ext => $attachtype) {
-            if (
-                $attachtype['ougc_fileprofilefields'] &&
-                is_member(
-                    $profilefield['ougc_fileprofilefields_types'],
-                    ['usergroup' => (int)$attachtype['atid'], 'additionalgroups' => '']
-                ) &&
-                ($attachtype['groups'] == -1 || is_member($attachtype['groups'], get_user($user['ufid'])))
-            ) {
-                $valid_mimes[] = $attachtype['mimetype'];
-
-                $exts[$ext] = $lang->sprintf(
-                    $lang->ougc_fileprofilefields_info_types_item,
-                    my_strtoupper($ext),
-                    get_friendly_size(
-                        (int)$profilefield['ougc_fileprofilefields_maxsize'] ?: (int)$attachtype['maxsize']
-                    )
-                );
-            }
-        }
-
-        if ($exts) {
-            $allowed_types = implode($lang->comma, array_keys($exts));
-
-            $accepted_formats = '.' . implode(', .', array_keys($exts)) . ', ' . implode(', ', $valid_mimes);
-
-            $code = eval($templates->render("ougcfileprofilefields_{$section}"));
-        } else {
-            $code = $lang->ougc_fileprofilefields_info_unconfigured;
-        }
-    }
+    return parent::get($title, $eslashes, $htmlcomments);
+}'
+    );
 }
 
-function ougc_plugins_customfields_profile_start()
+function ougc_file_profile_fields_user_control_panel80(array $hookArguments): array
 {
-    ougc_plugins_customfields_usercp_end80('profile');
+    buildFileFields(
+        'userControlPanel',
+        $hookArguments['userData'],
+        $hookArguments['profileFieldData'],
+        $hookArguments['fieldCode']
+    );
+
+    return $hookArguments;
 }
 
-function ougc_plugins_customfields_postbit_start(&$post)
+function ougc_file_profile_fields_profile(array &$hookArguments): array
 {
-    ougc_plugins_customfields_usercp_end80('postbit', $post);
+    buildFileFields(
+        'profile',
+        $hookArguments['userData'],
+        $hookArguments['profileFieldData'],
+        $hookArguments['fieldCode']
+    );
+
+    return $hookArguments;
 }
 
-function ougc_plugins_customfields_modcp_end()
+function ougc_file_profile_fields_post_start(array &$hookArguments): array
 {
-    ougc_plugins_customfields_usercp_end80('modcp');
+    buildFileFields(
+        'postBit',
+        $hookArguments['userData'],
+        $hookArguments['profileFieldData'],
+        $hookArguments['userData']['profilefield']
+    );
+
+    return $hookArguments;
+}
+
+function modcp_editprofile_start()
+{
+    global $templates;
+
+    control_object(
+        $templates,
+        'function get($title, $eslashes = 1, $htmlcomments = 1)
+{
+    if ($title === "usercp_profile_customfield") {
+        global $mybb, $plugins;
+        global $user_fields, $code, $profilefield;
+
+        $hookArguments = [
+            "profileFieldData" => &$profilefield,
+            "userData" => &$user_fields,
+            "fieldCode" => &$code
+        ];
+        
+        $hookArguments = $plugins->run_hooks("ougc_file_profile_fields_moderator_control_panel", $hookArguments);
+    }
+
+    return parent::get($title, $eslashes, $htmlcomments);
+}'
+    );
+}
+
+function ougc_file_profile_fields_moderator_control_panel(array &$hookArguments): array
+{
+    buildFileFields(
+        'moderatorControlPanel',
+        $hookArguments['userData'],
+        $hookArguments['profileFieldData'],
+        $hookArguments['fieldCode']
+    );
+
+    return $hookArguments;
 }
 
 function modcp_start()
@@ -578,15 +428,21 @@ function modcp_start()
 
     load_language();
 
-    set_url('modcp.php');
-
     $permission = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
+
+    $errors = '';
 
     $uid = 0;
 
     $filter_options = $mybb->get_input('filter', MyBB::INPUT_ARRAY);
 
-    $filter_options['fids'] = array_flip(array_map('intval', (array)$filter_options['fids']));
+    if (isset($filter_options['fids']) && is_array($filter_options['fids'])) {
+        $filter_options['fids'] = array_flip(array_map('intval', $filter_options['fids']));
+    } else {
+        $filter_options['fids'] = [];
+    }
+
+    $selected_fields = ['all' => ''];
 
     if (isset($filter_options['fids'][-1])) {
         $filter_options['fids'] = [];
@@ -602,8 +458,8 @@ function modcp_start()
         }
 
         $mybb->input['username'] = $user['username'];
-    } elseif ($filter_options['uid'] || $filter_options['username']) {
-        if ((int)$filter_options['uid']) {
+    } elseif (!empty($filter_options['uid']) || !empty($filter_options['username'])) {
+        if (!empty($filter_options['uid'])) {
             $user = get_user((int)$filter_options['uid']);
         } else {
             $user = get_user_by_username($filter_options['username']);
@@ -620,9 +476,9 @@ function modcp_start()
 
     $build_url = [];
 
-    set_url(build_url(['action' => 'ougc_fileprofilefields']));
+    urlHandlerSet(urlHandlerBuild(['action' => 'ougc_fileprofilefields']));
 
-    $url = build_url();
+    $url = urlHandlerBuild();
 
     $where = $where2 = [];
 
@@ -631,7 +487,7 @@ function modcp_start()
     }
 
     if ($permission) {
-        $nav = eval($templates->render('ougcfileprofilefields_modcp_nav'));
+        $nav = eval(getTemplate('moderatorControlPanelManagePageNav'));
 
         $modcp_nav = str_replace('<!--OUGC_FILEPROFILEFIELDS-->', $nav, $modcp_nav);
 
@@ -666,7 +522,7 @@ function modcp_start()
         $where['fids'] = "a.fid IN ('{$keys}')";
     }
 
-    if ($filter_options['date'] && $filter_options['time']) {
+    if (!empty($filter_options['date']) && !empty($filter_options['time'])) {
         $date = (array)explode('-', $filter_options['date']);
 
         $time = (array)explode(':', $filter_options['time']);
@@ -682,7 +538,7 @@ function modcp_start()
         $build_url['filter[time]'] = $filter_options['time'];
     }
 
-    if ($filter_options['status']) {
+    if (isset($filter_options['status'])) {
         (int)$status = $filter_options['status'];
 
         $where[] = "a.status='{$status}'";
@@ -690,7 +546,7 @@ function modcp_start()
         $build_url['filter[status]'] = $status;
     }
 
-    if ($filter_options['perpage']) {
+    if (!empty($filter_options['perpage'])) {
         $build_url['filter[perpage]'] = $perpage = (int)$filter_options['perpage'];
     }
 
@@ -700,16 +556,16 @@ function modcp_start()
 
     $order_dir = 'desc';
 
-    if (in_array($filter_options['order_by'], ['username'])) {
+    if (!empty($filter_options['order_by']) && in_array($filter_options['order_by'], ['username'])) {
         $order_by = "u.{$filter_options['order_by']}";
 
         $build_url['filter[order_by]'] = $filter_options['order_by'];
     }
 
-    if (in_array(
-        $filter_options['order_by'],
-        ['filemime', 'filename', 'filesize', 'downloads', 'uploaddate', 'updatedate']
-    )) {
+    if (!empty($filter_options['order_by']) && in_array(
+            $filter_options['order_by'],
+            ['filemime', 'filename', 'filesize', 'downloads', 'uploaddate', 'updatedate']
+        )) {
         $order_by = "a.{$filter_options['order_by']}";
 
         if ($filter_options['order_by'] == 'uploaddate') {
@@ -719,13 +575,13 @@ function modcp_start()
         $build_url['filter[order_by]'] = $filter_options['order_by'];
     }
 
-    if ($filter_options['order_dir'] == 'asc') {
+    if (!empty($filter_options['order_dir']) && $filter_options['order_dir'] == 'asc') {
         $order_dir = 'asc';
 
         $build_url['filter[order_dir]'] = $filter_options['order_by'];
     }
 
-    if (!$filter_options['order_dir']) {
+    if (empty($filter_options['order_dir'])) {
         $selected_order_dir['desc'] = ' selected="selected"';
     }
 
@@ -733,16 +589,16 @@ function modcp_start()
         $perpage = 10;
     }
 
+    global $profiecats;
+
     $profilefields_cache = [];
 
-    $pfcache = $cache->read('profilefields');
+    $pfcache = getProfileFieldsCache();
 
     foreach ($pfcache as $profilefield) {
-        if (my_strpos($profilefield['type'], 'file') === false) {
-            continue;
+        if (my_strpos($profilefield['type'], 'file') !== false) {
+            $profilefields_cache[$profilefield['fid']] = $profilefield;
         }
-
-        $profilefields_cache[$profilefield['fid']] = $profilefield;
     }
 
     add_breadcrumb($lang->nav_modcp, 'modcp.php');
@@ -759,7 +615,7 @@ function modcp_start()
                 "aid IN ('{$ids}')"
             );
 
-            redirect(build_url($build_url), $lang->ougc_fileprofilefields_redirect_approved);
+            redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_approved);
         }
 
         if ($mybb->get_input('do') == 'files' && $mybb->get_input('unapprove')) {
@@ -769,13 +625,13 @@ function modcp_start()
                 "aid IN ('{$ids}')"
             );
 
-            redirect(build_url($build_url), $lang->ougc_fileprofilefields_redirect_unapproved);
+            redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_unapproved);
         }
 
         if ($mybb->get_input('do') == 'logs' && $mybb->get_input('delete')) {
             $db->delete_query('ougc_fileprofilefields_logs', "lid IN ('{$ids}')");
 
-            redirect(build_url($build_url), $lang->ougc_fileprofilefields_redirect_deleted);
+            redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_deleted);
         }
 
         error_no_permission();
@@ -798,12 +654,12 @@ function modcp_start()
 
         $name = htmlspecialchars_uni($profilefield['name']);
 
-        $options .= eval($templates->render('ougcfileprofilefields_modcp_filter_option'));
+        $options .= eval(getTemplate('moderatorControlPanelManagePageFilterOption'));
     }
 
-    $date = htmlspecialchars_uni($filter_options['date']);
+    $date = isset($filter_options['date']) ? htmlspecialchars_uni($filter_options['date']) : '';
 
-    $time = htmlspecialchars_uni($filter_options['time']);
+    $time = isset($filter_options['time']) ? htmlspecialchars_uni($filter_options['time']) : '';
 
     $selected_status = [
         0 => '',
@@ -811,17 +667,23 @@ function modcp_start()
         2 => '',
     ];
 
-    $selected_status[(int)$filter_options['status']] = ' checked="checked"';
+    if (isset($filter_options['status'])) {
+        $selected_status[(int)$filter_options['status']] = ' checked="checked"';
+    }
 
     foreach (['username', 'filemime', 'filename', 'filesize', 'downloads', 'uploaddate', 'updatedate'] as $key) {
-        if ($filter_options['order_by'] == $key) {
+        if (!empty($filter_options['order_by']) && $filter_options['order_by'] == $key) {
             $selected_order_by[$key] = ' selected="selected"';
+        } else {
+            $selected_order_by[$key] = '';
         }
     }
 
     foreach (['asc', 'desc'] as $key) {
-        if ($filter_options['order_dir'] == $key) {
+        if (!empty($filter_options['order_dir']) && $filter_options['order_dir'] == $key) {
             $selected_order_dir[$key] = ' selected="selected"';
+        } else {
+            $selected_order_dir[$key] = '';
         }
     }
 
@@ -839,7 +701,9 @@ function modcp_start()
 
     $files_list = $logs_list = $multipage = '';
 
-    $form_url = build_url($build_url);
+    $form_url = urlHandlerBuild($build_url);
+
+    urlHandlerSet(getSetting('fileName'));
 
     if ($total_files) {
         $page = $mybb->get_input('page', MyBB::INPUT_INT);
@@ -860,9 +724,9 @@ function modcp_start()
             $page = 1;
         }
 
-        $multipage = (string)multipage($total_files, $perpage, $page, build_url($build_url));
+        $multipage = (string)multipage($total_files, $perpage, $page, urlHandlerBuild($build_url));
 
-        $multipage = eval($templates->render('ougcinvitesystem_content_multipage'));
+        $multipage = eval(getTemplate('moderatorControlPanelManagePagePagination'));
 
         $query = $db->simple_select(
             "ougc_fileprofilefields_files a LEFT JOIN {$db->table_prefix}users u ON (a.uid=u.uid) LEFT JOIN {$db->table_prefix}users m ON (a.muid=m.uid)",
@@ -896,6 +760,10 @@ function modcp_start()
                 $file[$key] = (int)$file[$key];
             }
 
+            $attachmentUrl = urlHandlerBuild(['aid' => $file['aid']]);
+
+            $thumbnailUrl = urlHandlerBuild(['thumbnail' => $file['aid']]);
+
             foreach (['username', 'filename', 'name', 'thumbnail', 'md5hash', 'filemime', 'mod_username'] as $key) {
                 ${$key} = htmlspecialchars_uni((string)$file[$key]);
             }
@@ -914,13 +782,15 @@ function modcp_start()
 
             $username = format_name($username, $file['usergroup'], $file['displaygroup']);
 
-            $profilelink = build_profile_link($username, $file['uid']);
+            $profileLink = build_profile_link($username, $file['uid']);
 
             $ext = get_extension(my_strtolower($file['filename']));
 
             $icon = get_attachment_icon($ext);
 
-            $field = htmlspecialchars_uni($profilefields_cache[$file['fid']]['name']);
+            $field = isset($profilefields_cache[$file['fid']]) ? htmlspecialchars_uni(
+                $profilefields_cache[$file['fid']]['name']
+            ) : '';
 
             switch ($file['status']) {
                 case -1:
@@ -945,22 +815,22 @@ function modcp_start()
                 $mod_profilelink = build_profile_link($mod_username, (int)$file['muid']);
             }
 
-            $files_list .= eval($templates->render('ougcfileprofilefields_modcp_files_file'));
+            $files_list .= eval(getTemplate('moderatorControlPanelManagePageFilesItem'));
 
             $trow = alt_trow();
         }
     }
 
     if (!$files_list) {
-        $files_list = eval($templates->render('ougcfileprofilefields_modcp_files_empty'));
+        $files_list = eval(getTemplate('moderatorControlPanelManagePageFilesEmpty'));
     }
 
-    $files = eval($templates->render('ougcfileprofilefields_modcp_files'));
+    $files = eval(getTemplate('moderatorControlPanelManagePageFiles'));
 
     $multipage = '';
 
     // reset unwanted clauses
-    unset($where['date'], $where['uid']);
+    //unset($where['date'], $where['uid']);
 
     if ($uid) {
         $where['uid'] = "l.uid='{$uid}'";
@@ -995,13 +865,13 @@ function modcp_start()
             $page = 1;
         }
 
-        $multipage = (string)multipage($total_logs, $perpage, $page, build_url($build_url));
+        $multipage = (string)multipage($total_logs, $perpage, $page, urlHandlerBuild($build_url));
 
-        $multipage = eval($templates->render('ougcinvitesystem_content_multipage'));
+        $multipage = eval(getTemplate('moderatorControlPanelManagePagePagination'));
 
         $query = $db->simple_select(
             "ougc_fileprofilefields_logs l LEFT JOIN {$db->table_prefix}ougc_fileprofilefields_files a ON (a.aid=l.aid) LEFT JOIN {$db->table_prefix}users u ON (l.uid=u.uid)",
-            'l.*, a.filename, a.filesize, u.username, u.usergroup, u.displaygroup',
+            'l.lid, l.uid, l.aid, l.ipaddress, l.dateline, a.filename, a.filesize, u.username, u.usergroup, u.displaygroup',
             implode(' AND ', array_merge($where, $where2)),
             [
                 'limit' => $perpage,
@@ -1014,9 +884,13 @@ function modcp_start()
         $trow = alt_trow(true);
 
         while ($log = $db->fetch_array($query)) {
-            foreach (['aid', 'uid', 'fid', 'filesize', 'dateline'] as $key) {
+            foreach (['aid', 'uid', 'filesize', 'dateline'] as $key) {
                 $log[$key] = (int)$log[$key];
             }
+
+            $attachmentUrl = urlHandlerBuild(['aid' => $log['aid']]);
+
+            $thumbnailUrl = urlHandlerBuild(['thumbnail' => $log['aid']]);
 
             foreach (['username', 'filename'] as $key) {
                 ${$key} = htmlspecialchars_uni($log[$key]);
@@ -1032,7 +906,7 @@ function modcp_start()
 
             $username = format_name($username, $log['usergroup'], $log['displaygroup']);
 
-            $profilelink = build_profile_link($username, $file['uid']);
+            $profileLink = build_profile_link($username, $log['uid']);
 
             $ext = get_extension(my_strtolower($log['filename']));
 
@@ -1040,21 +914,115 @@ function modcp_start()
 
             //$ipaddress = my_inet_ntop($db->unescape_binary($log['ipaddress']));
 
-            $logs_list .= eval($templates->render('ougcfileprofilefields_modcp_logs_log'));
+            $logs_list .= eval(getTemplate('moderatorControlPanelManagePageLogsRow'));
 
             $trow = alt_trow();
         }
     }
 
     if (!$logs_list) {
-        $logs_list = eval($templates->render('ougcfileprofilefields_modcp_logs_empty'));
+        $logs_list = eval(getTemplate('moderatorControlPanelManagePageLogsEmpty'));
     }
 
-    $logs = eval($templates->render('ougcfileprofilefields_modcp_logs'));
+    $logs = eval(getTemplate('moderatorControlPanelManagePageLogs'));
 
-    $page = eval($templates->render('ougcfileprofilefields_modcp_page'));
+    $page = eval(getTemplate('moderatorControlPanelManagePage'));
 
     output_page($page);
 
     exit;
+}
+
+function member_profile_start(): bool
+{
+    global $db;
+    global $memprofile;
+
+    $userID = (int)$memprofile['uid'];
+
+    $dbQuery = $db->simple_select('userfields', '*', "ufid='{$userID}'");
+
+    $userFields = $db->fetch_array($dbQuery);
+
+    $userFields = array_merge($memprofile, $userFields);
+
+    memberlist_user($userFields);
+
+    return true;
+}
+
+function memberlist_user(array &$userData): array
+{
+    global $fileProfileFieldsCachedUsersData;
+
+    if (!isset($fileProfileFieldsCachedUsersData)) {
+        $fileProfileFieldsCachedUsersData = [];
+    }
+
+    $userID = (int)$userData['uid'];
+
+    if (isset($fileProfileFieldsCachedUsersData[$userID])) {
+        return $userData;
+    }
+
+    foreach ($userData as $userDataFieldKey => $userDataFieldValue) {
+        $attachmentID = (int)$userDataFieldValue;
+
+        if (mb_strpos($userDataFieldKey, 'fid') === 0 && !empty($attachmentID)) {
+            $attachmentIDs[] = $attachmentID;
+        }
+    }
+
+    if (!empty($attachmentIDs)) {
+        $attachmentIDs = implode("','", $attachmentIDs);
+
+        $fileProfileFieldsCachedUsersData[$userID] = queryFilesMultiple(
+            ["uid='{$userID}'", "aid IN ('{$attachmentIDs}')"]
+        );
+    }
+
+    return $userData;
+    // todo, handle non-category profile fields
+}
+
+function ougc_profile_fields_categories_build_fields_categories_end(array &$hookArguments): array
+{
+    global $fileProfileFieldsProcessedUsers;
+
+    if (!isset($fileProfileFieldsProcessedUsers)) {
+        $fileProfileFieldsProcessedUsers = [];
+    }
+
+    if ($hookArguments['fieldType'] !== 'file') {
+        return $hookArguments;
+    }
+
+    global $fileProfileFieldsCachedUsersData;
+
+    $userID = (int)$hookArguments['userData']['uid'];
+
+    $attachmentID = is_numeric($hookArguments['userFieldValue']) ? (int)$hookArguments['userFieldValue'] : 0;
+
+    if (empty($fileProfileFieldsCachedUsersData[$userID]) || empty($fileProfileFieldsCachedUsersData[$userID][$attachmentID])) {
+        return $hookArguments;
+    }
+
+    $categoryID = (int)$hookArguments['categoryData']['cid'];
+
+    $userFile = renderUserFile(
+        $fileProfileFieldsCachedUsersData[$userID][$attachmentID],
+        $hookArguments['profileFieldData'],
+        $hookArguments['templatePrefix'],
+        $categoryID
+    );
+
+    if (!isset($fileProfileFieldsProcessedUsers[$userID])) {
+        $fileProfileFieldsProcessedUsers[$userID] = true;
+    }
+
+    if (!empty($userFile)) {
+        $hookArguments['userFieldValue'] = $userFile;
+    }
+
+    return $hookArguments;
 }

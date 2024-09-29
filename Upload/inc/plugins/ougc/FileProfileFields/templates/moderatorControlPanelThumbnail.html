@@ -1,0 +1,9 @@
+<div style="text-align: center;">
+    <a href="{$mybb->settings['bburl']}/{$attachmentUrl}" target="_blank"
+       title="{$lang->ougc_fileprofilefields_uploaddate}: {$fileUploadDate}, {$lang->ougc_fileprofilefields_updatedate}: {$fileUpdateDate}, {$lang->ougc_fileprofilefields_md5}: {$fileHash}">
+        <img src="{$mybb->settings['bburl']}/{$thumbnailUrl}" alt="{$fileName}"
+             width="{$thumbnailWidth}" height="{$thumbnailHeight}" style="max-width: 30em; height: auto;"/>
+    </a><br/>
+    ({$lang->ougc_fileprofilefields_filesize}: {$fileSize} / {$lang->ougc_fileprofilefields_downloads}:
+    {$fileDownloads})
+</div>

@@ -136,7 +136,11 @@ Follow the next steps in order to update your copy of this plugin.
 
 ### Template Modifications <a name = "template_modifications"></a>
 
-This plugin requires no template edits.
+1. Inside the `usercp_profile` template, find `method="post" name="input"` and add `enctype="multipart/form-data"` right
+   after that:
+2. Inside the `modcp_editprofile` template, find `action="modcp.php" method="post"` and
+   add `enctype="multipart/form-data"` right after that:
+3. Inside the `modcp_nav` template, find `{$modcp_nav_users}` and add `<!--OUGC_FILEPROFILEFIELDS-->` right after that:
 
 [Go up to Table of Contents](#table_of_contents)
 
@@ -178,7 +182,7 @@ For automatic file edits the following files require to be chmod `777` (on *nix 
 - modcp.php
 - usercp.php
 - member.php
-- inc/functions_post.
+- inc/functions_post.php
 
 ### 🛠 Example Configurations <a name = "usage_examples"></a>
 

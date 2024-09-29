@@ -1,0 +1,13 @@
+<tr valign="top">
+    <td class="{$trow}">{$profileLink}</td>
+    <td class="{$trow}">
+        {$icon}
+        <a href="{$mybb->settings['bburl']}/{$attachmentUrl}" target="_blank">
+            {$fileName}
+        </a>
+    </td>
+    <td class="{$trow}" align="center">{$fileSize}</td>
+    <td class="{$trow}" align="center">{$dateline}</td>
+    <td class="{$trow}" width="1" align="center"><input type="checkbox" class="checkbox" name="check[{$log['lid']}]"
+                                                        value="{$log['lid']}"/></td>
+</tr>
