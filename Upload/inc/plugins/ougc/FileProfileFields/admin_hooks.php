@@ -37,10 +37,13 @@ use function ougc\FileProfileFields\Admin\_edits_apply;
 use function ougc\FileProfileFields\Admin\_edits_revert;
 use function ougc\FileProfileFields\Core\get_userfields;
 use function ougc\FileProfileFields\Core\getProfileFieldsCache;
+use function ougc\FileProfileFields\Core\getSetting;
 use function ougc\FileProfileFields\Core\load_language;
 use function ougc\FileProfileFields\Core\query_file;
 use function ougc\FileProfileFields\Core\getTemplate;
 use function ougc\FileProfileFields\Core\queryFilesMultiple;
+use function ougc\FileProfileFields\Core\urlHandlerBuild;
+use function ougc\FileProfileFields\Core\urlHandlerSet;
 
 use const MYBB_ROOT;
 
@@ -147,169 +150,173 @@ function admin_formcontainer_output_row(array &$args): array
 
         $pfcache = getProfileFieldsCache();
 
-        if (is_array($pfcache)) {
-            $fid = $profile_fields_cache[$args['options']['id']];
+        $fid = $profile_fields_cache[$args['options']['id']];
 
-            $field = "fid{$fid}";
+        $field = "fid{$fid}";
 
-            $profilefield = false;
+        $profilefield = false;
 
-            foreach ($pfcache as $pf) {
-                if ($pf['fid'] == $fid) {
-                    $profilefield = $pf;
+        foreach ($pfcache as $pf) {
+            if ($pf['fid'] == $fid) {
+                $profilefield = $pf;
 
-                    break;
-                }
+                break;
+            }
+        }
+
+        $preview = '';
+
+        if ($profilefield) {
+            $seloptions = [];
+
+            $thing = explode("\n", $profilefield['type'], 2);
+
+            $type = $thing[0];
+
+            if ($type != 'file') {
+                return $args;
             }
 
-            $preview = '';
+            if ($mybb->get_input('action') == 'add') {
+                $args['options']['style'] = 'display: none !important;';
 
-            if ($profilefield) {
-                $seloptions = [];
+                return $args;
+            }
 
-                $thing = explode("\n", $profilefield['type'], 2);
+            static $user_fields = null;
 
-                $type = $thing[0];
+            if ($user_fields === null) {
+                $user_fields = get_userfields($mybb->get_input('uid', MyBB::INPUT_INT));
+            }
 
-                if ($type != 'file') {
-                    return $args;
-                }
+            $aid = (int)$user_fields[$field];
 
-                if ($mybb->get_input('action') == 'add') {
-                    $args['options']['style'] = 'display: none !important;';
+            $style = $accepted_formats = $update = $remove = '';
 
-                    return $args;
-                }
+            if ($file = query_file($aid)) {
+                $style = 'none';
 
-                static $user_fields = null;
+                load_language();
 
-                if ($user_fields === null) {
-                    $user_fields = get_userfields($mybb->get_input('uid', MyBB::INPUT_INT));
-                }
+                $ext = get_extension(my_strtolower($file['filename']));
 
-                $aid = (int)$user_fields[$field];
+                $icon = get_attachment_icon($ext);
 
-                $style = $accepted_formats = $update = $remove = '';
+                $fileName = htmlspecialchars_uni($file['filename']);
 
-                if ($file = query_file($aid)) {
-                    $style = 'none';
+                $fileSize = get_friendly_size($file['filesize']);
 
-                    load_language();
+                $downloads = my_number_format($file['downloads']);
 
-                    $ext = get_extension(my_strtolower($file['filename']));
+                $md5_hash = htmlspecialchars_uni($file['md5hash']);
 
-                    $icon = get_attachment_icon($ext);
+                $upload_date = my_date('normal', $file['uploaddate']);
 
-                    $filename = htmlspecialchars_uni($file['filename']);
+                $update_date = my_date('normal', $file['updatedate']);
 
-                    $filesize = get_friendly_size($file['filesize']);
+                // TODO: add option to reset downloads and upload date
 
-                    $downloads = my_number_format($file['downloads']);
+                $thumbnail = htmlspecialchars_uni($file['thumbnail']);
 
-                    $md5_hash = htmlspecialchars_uni($file['md5hash']);
+                $status = '';
 
-                    $upload_date = my_date('normal', $file['uploaddate']);
+                if ($file['status'] !== 1) {
+                    $description = $lang->ougc_fileprofilefields_status_notification_onqueue;
 
-                    $update_date = my_date('normal', $file['updatedate']);
-
-                    // TODO: add option to reset downloads and upload date
-
-                    $thumbnail = htmlspecialchars_uni($file['thumbnail']);
-
-                    $status = '';
-
-                    if ($file['status'] !== 1) {
-                        $description = $lang->ougc_fileprofilefields_status_notification_onqueue;
-
-                        if ($file['status'] === -1) {
-                            $description = $lang->ougc_fileprofilefields_status_notification_unapproved;
-                        }
-
-                        $status = eval(getTemplate('adminControlPanelStatus'));
+                    if ($file['status'] === -1) {
+                        $description = $lang->ougc_fileprofilefields_status_notification_unapproved;
                     }
 
-                    if (
-                        $file['thumbnail'] &&
-                        $profilefield['ougc_fileprofilefields_imageonly'] &&
-                        $profilefield['ougc_fileprofilefields_thumbnails'] &&
-                        file_exists(
-                            MYBB_ROOT . "{$profilefield['ougc_fileprofilefields_directory']}/{$file['thumbnail']}"
+                    $status = eval(getTemplate('adminControlPanelStatus'));
+                }
+
+                urlHandlerSet(getSetting('fileName'));
+
+                $attachmentUrl = urlHandlerBuild(['aid' => $aid]);
+
+                $thumbnailUrl = urlHandlerBuild(['thumbnail' => $aid]);
+
+                if (
+                    $file['thumbnail'] &&
+                    $profilefield['ougc_fileprofilefields_imageonly'] &&
+                    $profilefield['ougc_fileprofilefields_thumbnails'] &&
+                    file_exists(
+                        MYBB_ROOT . "{$profilefield['ougc_fileprofilefields_directory']}/{$file['thumbnail']}"
+                    )
+                ) {
+                    // TODO: store thumbnail dimensions in DB
+                    $dims = explode('|', $profilefield['ougc_fileprofilefields_thumbnailsdimns']);
+
+                    $width = (int)$dims[0];
+
+                    $height = (int)$dims[1];
+
+                    $preview = eval(getTemplate('adminControlPanelFileThumbnail'));
+                } else {
+                    $preview = eval(getTemplate('adminControlPanelFile'));
+                }
+
+                $update_aids = array_filter(
+                    array_map('intval', $mybb->get_input('ougcfileprofilefields_update', MyBB::INPUT_ARRAY))
+                );
+
+                $checked = '';
+
+                if (isset($update_aids[$profilefield['fid']])) {
+                    $checked = ' checked="checked"';
+                }
+
+                $update = eval(getTemplate('adminControlPanelUpdate'));
+
+                $remove_aids = array_filter(
+                    array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
+                );
+
+                $checked = '';
+
+                if (isset($remove_aids[$profilefield['fid']])) {
+                    $checked = ' checked="checked"';
+                }
+
+                $remove = eval(getTemplate('adminControlPanelRemove'));
+            }
+
+            global $user;
+
+            $attachcache = $mybb->cache->read('attachtypes');
+
+            $exts = $valid_mimes = [];
+
+            foreach ($attachcache as $ext => $attachtype) {
+                if (
+                    $attachtype['ougc_fileprofilefields'] &&
+                    is_member(
+                        $profilefield['ougc_fileprofilefields_types'],
+                        ['usergroup' => (int)$attachtype['atid'], 'additionalgroups' => '']
+                    ) &&
+                    ($attachtype['groups'] == -1 || is_member($attachtype['groups'], $user))
+                ) {
+                    $valid_mimes[] = $attachtype['mimetype'];
+
+                    $exts[$ext] = $lang->sprintf(
+                        $lang->ougc_fileprofilefields_info_types_item,
+                        my_strtoupper($ext),
+                        get_friendly_size(
+                            (int)$profilefield['ougc_fileprofilefields_maxsize'] ?: (int)$attachtype['maxsize']
                         )
-                    ) {
-                        // TODO: store thumbnail dimensions in DB
-                        $dims = explode('|', $profilefield['ougc_fileprofilefields_thumbnailsdimns']);
-
-                        $width = (int)$dims[0];
-
-                        $height = (int)$dims[1];
-
-                        $preview = eval(getTemplate('adminControlPanelFileThumbnail'));
-                    } else {
-                        $preview = eval(getTemplate('adminControlPanelFile'));
-                    }
-
-                    $update_aids = array_filter(
-                        array_map('intval', $mybb->get_input('ougcfileprofilefields_update', MyBB::INPUT_ARRAY))
                     );
-
-                    $checked = '';
-
-                    if (isset($update_aids[$profilefield['fid']])) {
-                        $checked = ' checked="checked"';
-                    }
-
-                    $update = eval(getTemplate('adminControlPanelUpdate'));
-
-                    $remove_aids = array_filter(
-                        array_map('intval', $mybb->get_input('ougcfileprofilefields_remove', MyBB::INPUT_ARRAY))
-                    );
-
-                    $checked = '';
-
-                    if (isset($remove_aids[$profilefield['fid']])) {
-                        $checked = ' checked="checked"';
-                    }
-
-                    $remove = eval(getTemplate('adminControlPanelRemove'));
                 }
-
-                global $user;
-
-                $attachcache = $mybb->cache->read('attachtypes');
-
-                $exts = $valid_mimes = [];
-
-                foreach ($attachcache as $ext => $attachtype) {
-                    if (
-                        $attachtype['ougc_fileprofilefields'] &&
-                        is_member(
-                            $profilefield['ougc_fileprofilefields_types'],
-                            ['usergroup' => (int)$attachtype['atid'], 'additionalgroups' => '']
-                        ) &&
-                        ($attachtype['groups'] == -1 || is_member($attachtype['groups'], $user))
-                    ) {
-                        $valid_mimes[] = $attachtype['mimetype'];
-
-                        $exts[$ext] = $lang->sprintf(
-                            $lang->ougc_fileprofilefields_info_types_item,
-                            my_strtoupper($ext),
-                            get_friendly_size(
-                                (int)$profilefield['ougc_fileprofilefields_maxsize'] ?: (int)$attachtype['maxsize']
-                            )
-                        );
-                    }
-                }
-
-                if ($exts) {
-                    $allowed_types = implode($lang->comma, array_keys($exts));
-
-                    $accepted_formats = '.' . implode(', .', array_keys($exts)) . ', ' . implode(', ', $valid_mimes);
-                }
-
-                $code = eval(getTemplate('adminControlPanel'));
-
-                $args['content'] = $code;
             }
+
+            if ($exts) {
+                $allowed_types = implode($lang->comma, array_keys($exts));
+
+                $accepted_formats = '.' . implode(', .', array_keys($exts)) . ', ' . implode(', ', $valid_mimes);
+            }
+
+            $code = eval(getTemplate('adminControlPanel'));
+
+            $args['content'] = $code;
         }
     }
 
@@ -602,12 +609,12 @@ function admin_config_profile_fields_edit_commit(): bool
     return true;
 }
 
-function admin_page_output_footer(): bool
+function admin_page_output_footer(array $args): array
 {
     global $run_module, $page;
 
     if (!($run_module == 'config' && $page->active_action == 'profile_fields')) {
-        return false;
+        return $args;
     }
 
     echo '
@@ -620,7 +627,7 @@ function admin_page_output_footer(): bool
 		});
 	</script>';
 
-    return true;
+    return $args;
 }
 
 function admin_tools_system_health_output_chmod_list(): bool

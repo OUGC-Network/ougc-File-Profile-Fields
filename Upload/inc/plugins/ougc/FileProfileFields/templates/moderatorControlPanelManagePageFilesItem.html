@@ -1,14 +1,14 @@
 <tr valign="top">
-    <td class="{$trow} {$status_class}">{$profilelink}</td>
+    <td class="{$trow} {$status_class}">{$profileLink}</td>
     <td class="{$trow} {$status_class}">
         {$icon}
-        <a href="{$mybb->settings['bburl']}/ougc_fileprofilefields.php?aid={$file['aid']}" target="_blank">
-            {$filename}
+        <a href="{$mybb->settings['bburl']}/{$attachmentUrl}" target="_blank">
+            {$fileName}
         </a>
         <div class="smalltext">
             {$lang->ougc_fileprofilefields_md5}: {$md5hash}<br/>
-            {$lang->ougc_fileprofilefields_mime}: {$filemime}<br/>
-            {$lang->ougc_fileprofilefields_filesize}: {$filesize}
+            {$lang->ougc_fileprofilefields_mime}: {$fileMime}<br/>
+            {$lang->ougc_fileprofilefields_filesize}: {$fileSize}
         </div>
     </td>
     <td class="{$trow} {$status_class}" align="center">{$field}</td>

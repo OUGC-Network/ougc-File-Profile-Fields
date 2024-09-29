@@ -37,6 +37,7 @@ use UserDataHandler;
 use function ougc\FileProfileFields\Core\buildFileFields;
 use function ougc\FileProfileFields\Core\control_object;
 use function ougc\FileProfileFields\Core\getProfileFieldsCache;
+use function ougc\FileProfileFields\Core\getSetting;
 use function ougc\FileProfileFields\Core\urlHandlerBuild;
 use function ougc\FileProfileFields\Core\delete_file;
 use function ougc\FileProfileFields\Core\get_userfields;
@@ -393,7 +394,7 @@ function modcp_editprofile_start()
 {
     if ($title === "usercp_profile_customfield") {
         global $mybb, $plugins;
-        global $user_fields, $code;
+        global $user_fields, $code, $profilefield;
 
         $hookArguments = [
             "profileFieldData" => &$profilefield,
@@ -409,16 +410,16 @@ function modcp_editprofile_start()
     );
 }
 
-function ougc_file_profile_fields_moderator_control_panel(): bool
+function ougc_file_profile_fields_moderator_control_panel(array &$hookArguments): array
 {
     buildFileFields(
-        'postBit',
+        'moderatorControlPanel',
         $hookArguments['userData'],
         $hookArguments['profileFieldData'],
         $hookArguments['fieldCode']
     );
 
-    return true;
+    return $hookArguments;
 }
 
 function modcp_start()
@@ -702,6 +703,8 @@ function modcp_start()
 
     $form_url = urlHandlerBuild($build_url);
 
+    urlHandlerSet(getSetting('fileName'));
+
     if ($total_files) {
         $page = $mybb->get_input('page', MyBB::INPUT_INT);
 
@@ -757,6 +760,10 @@ function modcp_start()
                 $file[$key] = (int)$file[$key];
             }
 
+            $attachmentUrl = urlHandlerBuild(['aid' => $file['aid']]);
+
+            $thumbnailUrl = urlHandlerBuild(['thumbnail' => $file['aid']]);
+
             foreach (['username', 'filename', 'name', 'thumbnail', 'md5hash', 'filemime', 'mod_username'] as $key) {
                 ${$key} = htmlspecialchars_uni((string)$file[$key]);
             }
@@ -775,7 +782,7 @@ function modcp_start()
 
             $username = format_name($username, $file['usergroup'], $file['displaygroup']);
 
-            $profilelink = build_profile_link($username, $file['uid']);
+            $profileLink = build_profile_link($username, $file['uid']);
 
             $ext = get_extension(my_strtolower($file['filename']));
 
@@ -881,6 +888,10 @@ function modcp_start()
                 $log[$key] = (int)$log[$key];
             }
 
+            $attachmentUrl = urlHandlerBuild(['aid' => $log['aid']]);
+
+            $thumbnailUrl = urlHandlerBuild(['thumbnail' => $log['aid']]);
+
             foreach (['username', 'filename'] as $key) {
                 ${$key} = htmlspecialchars_uni($log[$key]);
             }
@@ -895,7 +906,7 @@ function modcp_start()
 
             $username = format_name($username, $log['usergroup'], $log['displaygroup']);
 
-            $profilelink = build_profile_link($username, $log['uid']);
+            $profileLink = build_profile_link($username, $log['uid']);
 
             $ext = get_extension(my_strtolower($log['filename']));
 

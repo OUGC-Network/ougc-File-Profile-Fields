@@ -128,6 +128,15 @@ function addHooks(string $namespace)
     }
 }
 
+function getSetting(string $settingKey = '')
+{
+    global $mybb;
+
+    return SETTINGS[$settingKey] ?? (
+        $mybb->settings['ougcCustomFieldsSearch_' . $settingKey] ?? false
+    );
+}
+
 function getTemplateName(string $templateName = ''): string
 {
     $templatePrefix = '';
@@ -146,7 +155,11 @@ function getTemplate(string $templateName = '', bool $enableHTMLComments = true)
     if (DEBUG) {
         $filePath = ROOT . "/templates/{$templateName}.html";
 
-        $templateContents = file_get_contents($filePath);
+        $templateContents = '';
+
+        if (file_exists($filePath)) {
+            $templateContents = file_get_contents($filePath);
+        }
 
         $templates->cache[getTemplateName($templateName)] = $templateContents;
     } elseif (my_strpos($templateName, '/') !== false) {
@@ -367,7 +380,7 @@ function upload_file(int $uid, array $profilefield)
 
     $random_md5 = md5(random_str());
 
-    $filename = "profilefieldfile_{$profilefield['fid']}_{$uid}_{$time_now}_{$random_md5}.attach";
+    $fileName = "profilefieldfile_{$profilefield['fid']}_{$uid}_{$time_now}_{$random_md5}.attach";
 
     require_once MYBB_ROOT . 'inc/functions_upload.php';
 
@@ -376,17 +389,17 @@ function upload_file(int $uid, array $profilefield)
         'type' => $_FILES['profile_fields']['type'][$fieldIdentifier],
         'tmp_name' => $_FILES['profile_fields']['tmp_name'][$fieldIdentifier],
         'size' => $_FILES['profile_fields']['size'][$fieldIdentifier],
-    ], $uploadpath, $filename);
+    ], $uploadpath, $fileName);
 
-    if (isset($file['error']) || !file_exists("{$uploadpath}/{$filename}")) {
-        delete_uploaded_file("{$uploadpath}/{$filename}");
+    if (isset($file['error']) || !file_exists("{$uploadpath}/{$fileName}")) {
+        delete_uploaded_file("{$uploadpath}/{$fileName}");
 
         $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_file_exists;
 
         return $ret;
     }
 
-    $uploaded_mime = @mime_content_type("{$uploadpath}/{$filename}");
+    $uploaded_mime = @mime_content_type("{$uploadpath}/{$fileName}");
 
     if ($uploaded_mime && !in_array($uploaded_mime, $valid_mimes)) {
         $ret['error'] = $lang->sprintf(
@@ -402,13 +415,13 @@ function upload_file(int $uid, array $profilefield)
 
     $ret_data['uploadpath'] = $uploadpath;
 
-    $ret_data['name'] = $filename;
+    $ret_data['name'] = $fileName;
 
     if ($profilefield['ougc_fileprofilefields_imageonly']) {
-        $img_dimensions = @getimagesize("{$uploadpath}/{$filename}");
+        $img_dimensions = @getimagesize("{$uploadpath}/{$fileName}");
 
         if (!is_array($img_dimensions)) {
-            delete_uploaded_file("{$uploadpath}/{$filename}");
+            delete_uploaded_file("{$uploadpath}/{$fileName}");
 
             $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_image_info;
 
@@ -419,7 +432,7 @@ function upload_file(int $uid, array $profilefield)
             $minimum_dims = explode('|', $profilefield['ougc_fileprofilefields_imagemindims']);
 
             if (($minimum_dims[0] && $img_dimensions[0] < $minimum_dims[0]) || ($minimum_dims[1] && $img_dimensions[1] < $minimum_dims[1])) {
-                delete_uploaded_file("{$uploadpath}/{$filename}");
+                delete_uploaded_file("{$uploadpath}/{$fileName}");
 
                 $ret['error'] = $lang->sprintf(
                     $lang->ougc_fileprofilefields_errors_invalid_mindims,
@@ -448,15 +461,15 @@ function upload_file(int $uid, array $profilefield)
                     require_once MYBB_ROOT . 'inc/functions_image.php';
 
                     $thumbnail = generate_thumbnail(
-                        "{$uploadpath}/{$filename}",
+                        "{$uploadpath}/{$fileName}",
                         $uploadpath,
-                        $filename,
+                        $fileName,
                         $maximum_dims[1],
                         $maximum_dims[0]
                     );
 
                     if (empty($thumbnail['filename'])) {
-                        delete_uploaded_file("{$uploadpath}/{$filename}");
+                        delete_uploaded_file("{$uploadpath}/{$fileName}");
 
                         $ret['error'] = $lang->sprintf(
                             $lang->ougc_fileprofilefields_errors_invalid_maxdims,
@@ -473,14 +486,14 @@ function upload_file(int $uid, array $profilefield)
                     $img_dimensions = @getimagesize("{$uploadpath}/{$thumbnail['filename']}");
 
                     if (!is_array($img_dimensions)) {
-                        delete_uploaded_file("{$uploadpath}/{$filename}");
+                        delete_uploaded_file("{$uploadpath}/{$fileName}");
 
                         $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_image_info;
 
                         return $ret;
                     }
                 } else {
-                    delete_uploaded_file("{$uploadpath}/{$filename}");
+                    delete_uploaded_file("{$uploadpath}/{$fileName}");
 
                     $ret['error'] = $lang->sprintf(
                         $lang->ougc_fileprofilefields_errors_invalid_maxdims,
@@ -524,15 +537,15 @@ function upload_file(int $uid, array $profilefield)
         if (function_exists('finfo_open')) {
             $file_info = finfo_open(FILEINFO_MIME);
 
-            $ret_data['filemime'] = explode(';', finfo_file($file_info, "{$uploadpath}/{$filename}"))[0];
+            $ret_data['filemime'] = explode(';', finfo_file($file_info, "{$uploadpath}/{$fileName}"))[0];
 
             finfo_close($file_info);
         } elseif (function_exists('mime_content_type')) {
-            $ret_data['filemime'] = mime_content_type(MYBB_ROOT . "{$uploadpath}/{$filename}");
+            $ret_data['filemime'] = mime_content_type(MYBB_ROOT . "{$uploadpath}/{$fileName}");
         }
 
         if (empty($allowed_mime_types[$ret_data['filemime']]) || $img_dimensions[2] != $img_type || !$img_type) {
-            delete_uploaded_file("{$uploadpath}/{$filename}");
+            delete_uploaded_file("{$uploadpath}/{$fileName}");
 
             $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_image_info;
 
@@ -548,15 +561,15 @@ function upload_file(int $uid, array $profilefield)
             $dims = explode('|', $profilefield['ougc_fileprofilefields_thumbnailsdimns']);
 
             $thumbnail = generate_thumbnail(
-                "{$uploadpath}/{$filename}",
+                "{$uploadpath}/{$fileName}",
                 $uploadpath,
-                str_replace('.attach', "_thumb.{$file_ext}", $filename),
+                str_replace('.attach', "_thumb.{$file_ext}", $fileName),
                 $dims[1],
                 $dims[0]
             );
 
             if (empty($thumbnail['filename'])) {
-                delete_uploaded_file("{$uploadpath}/{$filename}");
+                delete_uploaded_file("{$uploadpath}/{$fileName}");
 
                 $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_thumbnail_creation;
 
@@ -568,7 +581,7 @@ function upload_file(int $uid, array $profilefield)
             $thumbnail_dimensions = @getimagesize("{$uploadpath}/{$thumbnail['filename']}");
 
             if (!is_array($thumbnail_dimensions)) {
-                delete_uploaded_file("{$uploadpath}/{$filename}");
+                delete_uploaded_file("{$uploadpath}/{$fileName}");
 
                 $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_image_info;
 
@@ -580,7 +593,7 @@ function upload_file(int $uid, array $profilefield)
     }
 
     if ($file['size'] > ($allowed_mime_types[$file['type']] * 1024)) {
-        delete_uploaded_file("{$uploadpath}/{$filename}");
+        delete_uploaded_file("{$uploadpath}/{$fileName}");
 
         $ret['error'] = $lang->sprintf(
             $lang->ougc_fileprofilefields_errors_upload_size,
@@ -592,7 +605,7 @@ function upload_file(int $uid, array $profilefield)
         return $ret;
     }
 
-    $ret_data['md5hash'] = md5_file("{$uploadpath}/{$filename}");
+    $ret_data['md5hash'] = md5_file("{$uploadpath}/{$fileName}");
 
     $args = $plugins->run_hooks('ougc_fileprofilefields_upload_file_end', $args);
 
@@ -613,7 +626,7 @@ function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [
         }
     }
 
-    $filename = "profilefieldfile_{$fid}_{$uid}";
+    $fileName = "profilefieldfile_{$fid}_{$uid}";
 
     $hook_arguments = [
         'uid' => &$uid,
@@ -621,7 +634,7 @@ function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [
         'uploadpath' => &$uploadpath,
         'exclude' => &$exclude,
         'profileFieldData' => &$profileFieldData,
-        'filename' => &$filename,
+        'filename' => &$fileName,
     ];
 
     $hook_arguments = $plugins->run_hooks('ougc_fileprofilefields_remove_files_start', $hook_arguments);
@@ -636,7 +649,7 @@ function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [
                 continue;
             }
 
-            if (preg_match("#{$filename}#", $file) && is_file("{$uploadpath}/{$file}") && !in_array($file, $exclude)) {
+            if (preg_match("#{$fileName}#", $file) && is_file("{$uploadpath}/{$file}") && !in_array($file, $exclude)) {
                 require_once MYBB_ROOT . 'inc/functions_upload.php';
 
                 delete_uploaded_file("{$uploadpath}/{$file}");
@@ -810,6 +823,12 @@ function renderUserFile(
 
     $attachmentID = (int)$fileData['aid'];
 
+    urlHandlerSet(getSetting('fileName'));
+
+    $attachmentUrl = urlHandlerBuild(['aid' => $attachmentID]);
+
+    $thumbnailUrl = urlHandlerBuild(['thumbnail' => $attachmentID]);
+
     if (
         $fileData['thumbnail'] &&
         $profileFieldData['ougc_fileprofilefields_imageonly'] &&
@@ -829,11 +848,11 @@ function renderUserFile(
             return eval(getTemplate("{$templatePrefix}Thumbnail"));
         }
     } elseif (customTemplateIsSet("{$templatePrefix}Category{$categoryID}")) {
-        return eval(getTemplate("{$templatePrefix}Category{$categoryID}"));
+        return eval(getTemplate("{$templatePrefix}Category{$categoryID}", false));
     } elseif (customTemplateIsSet("{$templatePrefix}Field{$profileFieldID}")) {
-        return eval(getTemplate("{$templatePrefix}Field{$profileFieldID}"));
+        return eval(getTemplate("{$templatePrefix}Field{$profileFieldID}", false));
     } else {
-        return eval(getTemplate($templatePrefix));
+        return eval(getTemplate($templatePrefix, false));
     }
 }
 
@@ -898,18 +917,24 @@ function buildFileFields(
 
     $styleCode = 'display: inherit;';
 
-    $ismod = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
+    $isModerator = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
 
     if (in_array($templatePrefix, ['profile', 'postbit'])) {
         $userData[$fieldIdentifier] = '';
     }
 
     if ($fileData = query_file($attachmentID)) {
+        urlHandlerSet(getSetting('fileName'));
+
+        $attachmentUrl = urlHandlerBuild(['aid' => $attachmentID]);
+
+        $thumbnailUrl = urlHandlerBuild(['thumbnail' => $attachmentID]);
+
         $fileData['status'] = (int)$fileData['status'];
 
         if (
             $fileData['status'] === 1 ||
-            $ismod ||
+            $isModerator ||
             !in_array($templatePrefix, ['profile', 'postbit'])
         ) {
             $styleCode = 'display: none;';
@@ -924,7 +949,7 @@ function buildFileFields(
 
             $fileSize = get_friendly_size($fileData['filesize']);
 
-            $fileDownloads = my_number_format($fileData['downloads']);
+            $fileDownloads = my_number_format((int)$fileData['downloads']);
 
             $fileHash = htmlspecialchars_uni($fileData['md5hash']);
 
@@ -943,15 +968,17 @@ function buildFileFields(
                     $statusDescription = $lang->ougc_fileprofilefields_status_notification_unapproved;
                 }
 
-                if ($ismod && customTemplateIsSet("{$templatePrefix}StatusModeratorCategory{$categoryID}")) {
+                if ($isModerator && customTemplateIsSet("{$templatePrefix}StatusModeratorCategory{$categoryID}")) {
                     $statusCode = eval(
                     getTemplate(
                         "{$templatePrefix}StatusModeratorCategory{$categoryID}"
                     )
                     );
-                } elseif ($ismod && customTemplateIsSet("{$templatePrefix}StatusModeratorField{$profileFieldID}")) {
+                } elseif ($isModerator && customTemplateIsSet(
+                        "{$templatePrefix}StatusModeratorField{$profileFieldID}"
+                    )) {
                     $statusCode = eval(getTemplate("{$templatePrefix}StatusModeratorField{$profileFieldID}"));
-                } elseif ($ismod) {
+                } elseif ($isModerator) {
                     $statusCode = eval(getTemplate("{$templatePrefix}StatusModerator"));
                 } elseif (customTemplateIsSet("{$templatePrefix}StatusCategory{$categoryID}")) {
                     $statusCode = eval(
@@ -1076,9 +1103,9 @@ function buildFileFields(
                     $validMimeTypes
                 );
 
-            $code = eval(getTemplate("{$templatePrefix}FieldWrapper"));
+            $filePreview = eval(getTemplate("{$templatePrefix}FieldWrapper"));
         } else {
-            $code = $lang->ougc_fileprofilefields_info_unconfigured;
+            $filePreview = $lang->ougc_fileprofilefields_info_unconfigured;
         }
     }
 
@@ -1089,7 +1116,7 @@ function buildFileFields(
 function control_object(&$obj, $code)
 {
     static $cnt = 0;
-    $newname = '_objcont_' . (++$cnt);
+    $newname = '_objcont_ougc_file_profile_fields_' . (++$cnt);
     $objserial = serialize($obj);
     $classname = get_class($obj);
     $checkstr = 'O:' . strlen($classname) . ':"' . $classname . '":';

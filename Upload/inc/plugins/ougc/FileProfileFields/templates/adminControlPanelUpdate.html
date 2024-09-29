@@ -2,22 +2,18 @@
        id="ougcfileprofilefields_update_{$profilefield['fid']}" value="1" {$checked}/>
 <label for="ougcfileprofilefields_update_{$profilefield['fid']}">{$lang->ougc_fileprofilefields_update}</label>
 <script>
-    $('#ougcfileprofilefields_update_{$profilefield['fid']}').change(function () {
-        if(this.checked)
-        {
-            $('#ougcfileprofilefields_remove_{$profilefield['fid']}').prop('checked', false);
+    $("#ougcfileprofilefields_update_{$profilefield['fid']}").change(function () {
+        if (this.checked) {
+            $("#ougcfileprofilefields_remove_{$profilefield['fid']}").prop('checked', false);
 
             $('#profile_fields_file_{$field}').show();
-        }
-        else
-        {
+        } else {
             $('#profile_fields_file_{$field}').hide();
         }
     });
 
-    $(document).ready(function() {
-        if($('#ougcfileprofilefields_update_{$profilefield['fid']}:checked').length > 0)
-        {
+    $(document).ready(function () {
+        if ($("#ougcfileprofilefields_update_{$profilefield['fid']}:checked").length > 0) {
             $('#profile_fields_file_{$field}').show();
         }
     });
