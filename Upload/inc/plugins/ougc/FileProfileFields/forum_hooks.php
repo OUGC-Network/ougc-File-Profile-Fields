@@ -942,7 +942,7 @@ function member_profile_start(): bool
 
     $dbQuery = $db->simple_select('userfields', '*', "ufid='{$userID}'");
 
-    $userFields = $db->fetch_array($dbQuery);
+    $userFields = (array)$db->fetch_array($dbQuery);
 
     $userFields = array_merge($memprofile, $userFields);
 

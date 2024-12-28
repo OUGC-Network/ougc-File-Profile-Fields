@@ -262,7 +262,7 @@ function query_file(int $aid): array
     $query = $db->simple_select('ougc_fileprofilefields_files', '*', "aid='{$aid}'");
 
     if ($db->num_rows($query)) {
-        return $db->fetch_array($query);
+        return (array)$db->fetch_array($query);
     }
 
     return [];
@@ -722,7 +722,7 @@ function get_userfields(int $uid): array
         $query = $db->simple_select('userfields', '*', "ufid='{$uid}'");
 
         if ($db->num_rows($query)) {
-            $user_cache[$uid] = $db->fetch_array($query);
+            $user_cache[$uid] = (array)$db->fetch_array($query);
         } else {
             $user_cache[$uid] = [];
         }
