@@ -968,7 +968,7 @@ function memberlist_user(array &$userData): array
     foreach ($userData as $userDataFieldKey => $userDataFieldValue) {
         $attachmentID = (int)$userDataFieldValue;
 
-        if (mb_strpos($userDataFieldKey, 'fid') === 0 && !empty($attachmentID)) {
+        if (my_strpos($userDataFieldKey, 'fid') === 0 && !empty($attachmentID)) {
             $attachmentIDs[] = $attachmentID;
         }
     }
