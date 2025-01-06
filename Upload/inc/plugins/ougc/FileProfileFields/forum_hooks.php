@@ -99,6 +99,10 @@ function global_start09(): bool
 
 function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
 {
+    if ($dh->method === 'insert') {
+        //return $dh;
+    }
+
     global $db, $cache, $mybb, $lang;
     global $ougcFileProfileFieldsObjects;
 
