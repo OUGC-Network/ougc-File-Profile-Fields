@@ -2,7 +2,7 @@
 
 /***************************************************************************
  *
- *    OUGC File Profile Fields plugin (/inc/languages/english/ougc_fileprofilefields.lang.php)
+ *    ougc File Profile Fields plugin (/inc/languages/english/ougc_fileprofilefields.lang.php)
  *    Author: Omar Gonzalez
  *    Copyright: © 2020 Omar Gonzalez
  *

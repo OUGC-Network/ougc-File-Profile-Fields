@@ -4,7 +4,7 @@
     </a>
 </p>
 
-<h3 align="center">OUGC File Profile Fields</h3>
+<h3 align="center">ougc File Profile Fields</h3>
 
 <div align="center">
 

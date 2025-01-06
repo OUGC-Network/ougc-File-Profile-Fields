@@ -2,7 +2,7 @@
 
 /***************************************************************************
  *
- *    OUGC File Profile Fields plugin (/inc/plugins/ougc/FileProfileFields/core.php)
+ *    ougc File Profile Fields plugin (/inc/plugins/ougc/FileProfileFields/core.php)
  *    Author: Omar Gonzalez
  *    Copyright: © 2020 Omar Gonzalez
  *

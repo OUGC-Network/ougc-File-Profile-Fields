@@ -2,7 +2,7 @@
 
 /***************************************************************************
  *
- *    OUGC File Profile Fields plugin (/inc/plugins/ougc/FileProfileFields/admin.php)
+ *    ougc File Profile Fields plugin (/inc/plugins/ougc/FileProfileFields/admin.php)
  *    Author: Omar Gonzalez
  *    Copyright: © 2020 Omar Gonzalez
  *
@@ -44,7 +44,7 @@ function _info(): array
     load_language();
 
     return [
-        'name' => 'OUGC File Profile Fields',
+        'name' => 'ougc File Profile Fields',
         'description' => $lang->setting_group_ougc_fileprofilefields_desc . _edits_description(),
         'website' => 'https://ougc.network',
         'author' => 'Omar G.',
@@ -137,7 +137,7 @@ function _activate(): bool
     }
 
     if ($templates) {
-        $PL->templates('ougcfileprofilefields', 'OUGC File Profile Fields', $templates);
+        $PL->templates('ougcfileprofilefields', 'ougc File Profile Fields', $templates);
     }
 
     // Insert/update version into cache
