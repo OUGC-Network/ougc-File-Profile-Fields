@@ -189,7 +189,7 @@ function admin_formcontainer_output_row(array &$args): array
                 $user_fields = get_userfields($mybb->get_input('uid', MyBB::INPUT_INT));
             }
 
-            $aid = (int)$user_fields[$field];
+            $aid = (int)($user_fields[$field] ?? 0);
 
             $style = $accepted_formats = $update = $remove = '';
 

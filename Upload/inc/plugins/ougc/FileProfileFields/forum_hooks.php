@@ -159,7 +159,7 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
 
             $ougcFileProfileFieldsObjects[$profileFieldData['fid']] = false;
 
-            $user_fields[$field] = $original_values[$field];
+            $user_fields[$field] = $original_values[$field] ?? '';
 
             unset($dh->errors['missing_required_profile_field']);
 
