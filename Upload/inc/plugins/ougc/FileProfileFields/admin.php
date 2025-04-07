@@ -460,6 +460,20 @@ function _edits_apply(bool $apply = false): bool
         return false;
     }
 
+    if ($PL->edit_core('ougc_plugins_customfields_begin', 'inc/functions_post.php', [
+            'search' => ['$hascustomtitle = 0;'],
+            'before' => [
+                '$hookArguments = [
+				\'userData\' => &$post,
+				\'postType\' => &$post_type,
+			];
+			
+			$plugins->run_hooks(\'postbit_start\', $hookArguments);',
+            ],
+        ], $apply) !== true) {
+        return false;
+    }
+
     return true;
 }
 

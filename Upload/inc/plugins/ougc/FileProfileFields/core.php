@@ -878,7 +878,7 @@ function buildFileFields(
     string $templatePrefix,
     array &$userData,
     array &$profileFieldData,
-    string &$filePreview,
+    string &$fileCode,
     bool $resetFieldCode = false
 ): bool {
     $fieldType = explode("\n", $profileFieldData['type'], 2)[0] ?? '';
@@ -927,7 +927,7 @@ function buildFileFields(
 
     if (!empty($profileFieldData['ougc_fileprofilefields_customoutput'])) {
         $filePreview = &$ougc_fileprofilefields[$fieldIdentifier];
-    } elseif (!empty($filePreview)) {
+    } else {
         $filePreview = '';
     }
 
@@ -1089,6 +1089,12 @@ function buildFileFields(
         }
     }
 
+    global $customFileProfileFields;
+
+    isset($customFileProfileFields) || $customFileProfileFields = [];
+
+    $customFileProfileFields[$fieldIdentifier] = $filePreview;
+
     if (!in_array($templatePrefix, ['profile', 'postbit'])) {
         load_language();
 
@@ -1126,6 +1132,8 @@ function buildFileFields(
             $filePreview = $lang->ougc_fileprofilefields_info_unconfigured;
         }
     }
+
+    $fileCode = $filePreview;
 
     return true;
 }
