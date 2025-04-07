@@ -69,22 +69,18 @@ function global_start09(): bool
         THIS_SCRIPT,
         ['showthread.php', 'private.php', 'newthread.php', 'newreply.php', 'editpost.php', 'member.php', 'usercp.php']
     )) {
-        $pfcache = getProfileFieldsCache();
+        $mainPrefix = 'ougcfileprofilefields_';
 
-        if ($pfcache) {
-            $mainPrefix = 'ougcfileprofilefields_';
+        $templatePrefixes = ['profile', 'postBit', 'memberList', 'userControlPanel', 'moderatorControlPanel'];
 
-            $templatePrefixes = ['profile', 'postBit', 'memberList', 'userControlPanel', 'moderatorControlPanel'];
+        foreach (getProfileFieldsCache() as $profileFieldData) {
+            if (my_strpos($profileFieldData['type'], 'file') !== false) {
+                $profileFieldID = (int)$profileFieldData['fid'];
 
-            foreach ($pfcache as $profileFieldData) {
-                if (my_strpos($profileFieldData['type'], 'file') !== false) {
-                    $profileFieldID = (int)$profileFieldData['fid'];
+                foreach ($templatePrefixes as $templatePrefix) {
+                    $templatelist .= ", {$mainPrefix}{$templatePrefix}, {$mainPrefix}{$templatePrefix}Status, {$mainPrefix}{$templatePrefix}StatusModerator, {$mainPrefix}{$templatePrefix}Thumbnail";
 
-                    foreach ($templatePrefixes as $templatePrefix) {
-                        $templatelist .= ", {$mainPrefix}{$templatePrefix}, {$mainPrefix}{$templatePrefix}Status, {$mainPrefix}{$templatePrefix}StatusModerator, {$mainPrefix}{$templatePrefix}Thumbnail";
-
-                        $templatelist .= ", {$mainPrefix}{$templatePrefix}Field{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusField{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusModeratorField{$profileFieldID}, {$mainPrefix}{$templatePrefix}ThumbnailField{$profileFieldID}";
-                    }
+                    $templatelist .= ", {$mainPrefix}{$templatePrefix}{$profileFieldID}, {$mainPrefix}{$templatePrefix}Status{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusModerator{$profileFieldID}, {$mainPrefix}{$templatePrefix}Thumbnail{$profileFieldID}, {$mainPrefix}{$templatePrefix}Field{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusField{$profileFieldID}, {$mainPrefix}{$templatePrefix}StatusModeratorField{$profileFieldID}, {$mainPrefix}{$templatePrefix}ThumbnailField{$profileFieldID}";
                 }
             }
         }
@@ -313,10 +309,10 @@ function datahandler_user_delete_start(UserDataHandler &$dh): UserDataHandler
 
     $delete_uids = implode("','", $dh->delete_uids);
 
-    $query = $db->simple_select('ougc_fileprofilefields_files', '*', "uid IN ('1', '{$delete_uids}')");
+    $query = $db->simple_select('ougc_fileprofilefields_files', '*', "uid IN ('{$delete_uids}')");
 
-    while ($file = $db->fetch_array($query)) {
-        delete_file($file['uid'], $profilefields_cache[$file['fid']]);
+    while ($fileData = $db->fetch_array($query)) {
+        delete_file((int)$fileData['uid'], $profilefields_cache[$fileData['fid']] ?? []);
     }
 
     $db->delete_query('ougc_fileprofilefields_files', "uid IN ('{$delete_uids}')");
@@ -336,7 +332,7 @@ function usercp_profile_start()
 {
     if ($title === "usercp_profile_customfield") {
         global $mybb, $plugins;
-        global $profilefield, $code;
+        global $profilefield, $code, $type;
 
         $hookArguments = [
             "profileFieldData" => &$profilefield,
@@ -352,8 +348,10 @@ function usercp_profile_start()
     );
 }
 
-function ougc_file_profile_fields_user_control_panel80(array $hookArguments): array
+function ougc_file_profile_fields_user_control_panel80(array &$hookArguments): array
 {
+    postbit_start($hookArguments);
+
     buildFileFields(
         'userControlPanel',
         $hookArguments['userData'],
@@ -366,6 +364,12 @@ function ougc_file_profile_fields_user_control_panel80(array $hookArguments): ar
 
 function ougc_file_profile_fields_profile(array &$hookArguments): array
 {
+    postbit_start($hookArguments);
+
+    if (empty($hookArguments['userData'])) {
+        return $hookArguments;
+    }
+
     buildFileFields(
         'profile',
         $hookArguments['userData'],
@@ -378,12 +382,39 @@ function ougc_file_profile_fields_profile(array &$hookArguments): array
 
 function ougc_file_profile_fields_post_start(array &$hookArguments): array
 {
+    postbit_start($hookArguments);
+
     buildFileFields(
         'postBit',
         $hookArguments['userData'],
         $hookArguments['profileFieldData'],
         $hookArguments['userData']['profilefield']
     );
+
+    return $hookArguments;
+}
+
+function postbit_start(array &$hookArguments): array
+{
+    static $currentUserID;
+
+    $userID = (int)$hookArguments['userData'];
+
+    if ($currentUserID !== $userID || 1) {
+        $currentUserID = $userID;
+
+        global $customFileProfileFields;
+
+        isset($customFileProfileFields) || $customFileProfileFields = [];
+
+        foreach (\ougc\FileProfileFields\Core\getProfileFieldsCache() as $profileField) {
+            $profileFieldID = (int)$profileField['fid'];
+
+            $fieldIdentifier = "fid{$profileFieldID}";
+
+            $customFileProfileFields[$fieldIdentifier] = '';
+        }
+    }
 
     return $hookArguments;
 }
@@ -416,6 +447,8 @@ function modcp_editprofile_start()
 
 function ougc_file_profile_fields_moderator_control_panel(array &$hookArguments): array
 {
+    postbit_start($hookArguments);
+
     buildFileFields(
         'moderatorControlPanel',
         $hookArguments['userData'],
