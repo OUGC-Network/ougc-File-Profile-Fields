@@ -51,16 +51,18 @@ global $cache, $mybb, $db, $lang, $plugins;
 
 $currentUserID = (int)$mybb->user['uid'];
 
-$thumbnail = $mybb->get_input('thumbnail', MyBB::INPUT_INT);
-
 if (OUGC_FILEPROFILEFIELDS_FULL) {
     require_once $working_dir . '/global.php';
+
+    $thumbnail = $mybb->get_input('thumbnail', MyBB::INPUT_INT);
 
     $errorFunction = 'error';
 } else {
     $shutdown_queries = $shutdown_functions = [];
 
     require_once $working_dir . '/inc/init.php';
+
+    $thumbnail = $mybb->get_input('thumbnail', MyBB::INPUT_INT);
 
     $groupscache = $cache->read('usergroups');
 
@@ -143,7 +145,9 @@ if ($thumbnail) {
     $aid = $mybb->get_input('aid', MyBB::INPUT_INT);
 }
 
-if (!($file = query_file($aid))) {
+$file = query_file($aid);
+
+if (!$file) {
     $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 

@@ -1,10 +1,10 @@
-<input type="checkbox" class="checkbox" name="ougcfileprofilefields_remove[{$profilefield['fid']}]"
-       id="ougcfileprofilefields_remove_{$profilefield['fid']}" value="1" {$checked}/>
-<label for="ougcfileprofilefields_remove_{$profilefield['fid']}">{$lang->ougc_fileprofilefields_remove}</label>
+<input type="checkbox" class="checkbox" name="ougcfileprofilefields_remove[{$profileFieldID}]"
+       id="ougcfileprofilefields_remove_{$profileFieldID}" value="1" {$checked}/>
+<label for="ougcfileprofilefields_remove_{$profileFieldID}">{$lang->ougc_fileprofilefields_remove}</label>
 <script>
-    $("#ougcfileprofilefields_remove_{$profilefield['fid']}").change(function () {
+    $("#ougcfileprofilefields_remove_{$profileFieldID}").change(function () {
         if (this.checked) {
-            $("#ougcfileprofilefields_update_{$profilefield['fid']}").prop('checked', false);
+            $("#ougcfileprofilefields_update_{$profileFieldID}").prop('checked', false);
 
             $('#profile_fields_file_{$field}').show();
         } else {
@@ -13,7 +13,7 @@
     });
 
     $(document).ready(function () {
-        if ($("#ougcfileprofilefields_remove_{$profilefield['fid']}:checked").length > 0) {
+        if ($("#ougcfileprofilefields_remove_{$profileFieldID}:checked").length > 0) {
             $('#profile_fields_file_{$field}').show();
         }
     });

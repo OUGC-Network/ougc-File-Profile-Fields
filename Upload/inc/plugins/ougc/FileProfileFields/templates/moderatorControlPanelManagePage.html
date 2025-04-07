@@ -13,19 +13,24 @@
                 {$errors}
                 {$files}
                 {$logs}
-                <br />
+                <br/>
                 <form action="{$mybb->settings['bburl']}/{$url}" method="get">
-                    <input type="hidden" name="action" value="ougc_fileprofilefields" />
-                    <table border="0" cellspacing="{$theme['borderwidth']}" cellpadding="{$theme['tablespace']}" class="tborder">
+                    <input type="hidden" name="action" value="ougc_fileprofilefields"/>
+                    <table border="0" cellspacing="{$theme['borderwidth']}" cellpadding="{$theme['tablespace']}"
+                           class="tborder">
                         <tr>
-                            <td class="thead" colspan="2"><strong>{$lang->ougc_fileprofilefields_modcp_filter}</strong></td>
+                            <td class="thead" colspan="2"><strong>{$lang->ougc_fileprofilefields_modcp_filter}</strong>
+                            </td>
                         </tr>
                         <tr>
-                            <td class="trow1" width="25%"><strong>{$lang->ougc_fileprofilefields_modcp_filter_username}:</strong></td>
+                            <td class="trow1" width="25%">
+                                <strong>{$lang->ougc_fileprofilefields_modcp_filter_username}:</strong></td>
                             <td class="trow1" width="75%">
-                                <input type="text" name="filter[username]" id="username" value="{$filter_username}" class="textbox" />
+                                <input type="text" name="filter[username]" id="username" value="{$filter_username}"
+                                       class="textbox"/>
                                 <link rel="stylesheet" href="{$mybb->asset_url}/jscripts/select2/select2.css?ver=1807">
-                                <script type="text/javascript" src="{$mybb->asset_url}/jscripts/select2/select2.min.js?ver=1806"></script>
+                                <script type="text/javascript"
+                                        src="{$mybb->asset_url}/jscripts/select2/select2.min.js?ver=1806"></script>
                                 <script type="text/javascript">
                                     <!--
                                     if(use_xmlhttprequest == "1")
@@ -65,70 +70,97 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="trow1" width="25%"><strong>{$lang->ougc_fileprofilefields_modcp_filter_field}:</strong></td>
+                            <td class="trow1" width="25%">
+                                <strong>{$lang->ougc_fileprofilefields_modcp_filter_field}:</strong></td>
                             <td class="trow1" width="75%">
                                 <select name="filter[fids][]">
-                                    <option value="-1" {$selected_fields['all']}>All</option>
+                                    <option value="-1" {$selectedElementProfileFieldsAll}>All</option>
                                     {$options}
-                                    </label>
+                                </select>
                             </td>
                         </tr>
                         <tr>
-                            <td class="trow1" width="25%"><strong>{$lang->ougc_fileprofilefields_modcp_filter_date}:</strong></td>
+                            <td class="trow1" width="25%">
+                                <strong>{$lang->ougc_fileprofilefields_modcp_filter_date}:</strong></td>
                             <td class="trow1" width="75%">
-                                <input type="date" name="filter[date]" value="{$date}" class="textbox" />
-                                <input type="time" name="filter[time]" value="{$time}" class="textbox" />
+                                <input type="date" name="filter[date]" value="{$date}" class="textbox"/>
+                                <input type="time" name="filter[time]" value="{$time}" class="textbox"/>
                                 <div class="smalltext">{$lang->ougc_fileprofilefields_modcp_filter_date_desc}:</div>
                             </td>
                         </tr>
                         <tr>
-                            <td class="trow1" width="25%"><strong>{$lang->ougc_fileprofilefields_modcp_filter_status}:</strong></td>
+                            <td class="trow1" width="25%">
+                                <strong>{$lang->ougc_fileprofilefields_modcp_filter_status}:</strong></td>
                             <td class="trow1" width="75%">
                                 <label>
-                                    <input type="radio" name="filter[status]" value="0" class="checkbox" {$selected_status[0]} />
+                                    <input type="radio" name="filter[status]" value="0" class="checkbox"
+                                           {$selected_status[0]}/>
                                     {$lang->ougc_fileprofilefields_modcp_filter_status_queue}
                                 </label>
                                 <label>
-                                    <input type="radio" name="filter[status]" value="1" class="checkbox" {$selected_status[1]} />
+                                    <input type="radio" name="filter[status]" value="1" class="checkbox"
+                                           {$selected_status[1]}/>
                                     {$lang->ougc_fileprofilefields_modcp_filter_status_approved}
                                 </label>
                                 <label>
-                                    <input type="radio" name="filter[status]" value="-1" class="checkbox" {$selected_status[2]} />
+                                    <input type="radio" name="filter[status]" value="-1" class="checkbox"
+                                           {$selected_status[2]}/>
                                     {$lang->ougc_fileprofilefields_modcp_filter_status_unapproved}
                                 </label>
                             </td>
                         </tr>
                         <tr>
-                            <td class="trow1" width="25%"><strong>{$lang->ougc_fileprofilefields_modcp_filter_perpage}:</strong></td>
+                            <td class="trow1" width="25%">
+                                <strong>{$lang->ougc_fileprofilefields_modcp_filter_perpage}:</strong></td>
                             <td class="trow1" width="75%">
-                                <input type="number" name="filter[perpage]" value="{$perpage}" class="textbox" />
+                                <input type="number" name="filter[perpage]" value="{$perpage}" class="textbox"/>
                             </td>
                         </tr>
                         <tr>
-                            <td class="trow1" width="25%"><strong>{$lang->ougc_fileprofilefields_modcp_filter_order_by}:</strong></td>
+                            <td class="trow1" width="25%">
+                                <strong>{$lang->ougc_fileprofilefields_modcp_filter_order_by}:</strong></td>
                             <td class="trow1" width="75%">
                                 <select name="filter[order_by]">
-                                    <option value="username" {$selected_order_by['username']}>{$lang->ougc_fileprofilefields_modcp_filter_order_by_username}</option>
-                                    <option value="filemime" {$selected_order_by['filemime']}>{$lang->ougc_fileprofilefields_modcp_filter_order_by_mime}</option>
-                                    <option value="filename" {$selected_order_by['filename']}>{$lang->ougc_fileprofilefields_modcp_filter_order_by_filename}</option>
-                                    <option value="filesize" {$selected_order_by['filesize']}>{$lang->ougc_fileprofilefields_modcp_filter_order_by_filesize}</option>
-                                    <option value="downloads" {$selected_order_by['downloads']}>{$lang->ougc_fileprofilefields_modcp_filter_order_by_downloads}</option>
-                                    <option value="uploaddate" {$selected_order_by['uploaddate']}>{$lang->ougc_fileprofilefields_modcp_filter_order_by_uploaddate}</option>
-                                    <option value="updatedate" {$selected_order_by['updatedate']}>{$lang->ougc_fileprofilefields_modcp_filter_order_by_updatedate}</option>
-                                    </label>
+                                    <option value="username" {$selectedElementUserName}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_by_username}
+                                    </option>
+                                    <option value="filemime" {$selectedElementFileMime}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_by_mime}
+                                    </option>
+                                    <option value="filename" {$selectedElementFileName}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_by_filename}
+                                    </option>
+                                    <option value="filesize" {$selectedElementFileSize}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_by_filesize}
+                                    </option>
+                                    <option value="downloads" {$selectedElementFileDownloads}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_by_downloads}
+                                    </option>
+                                    <option value="uploaddate" {$selectedElementUploadDate}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_by_uploaddate}
+                                    </option>
+                                    <option value="updatedate" {$selectedElementUpdateDate}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_by_updatedate}
+                                    </option>
+                                </select>
                             </td>
                         </tr>
                         <tr>
-                            <td class="trow1" width="25%"><strong>{$lang->ougc_fileprofilefields_modcp_filter_order_dir}:</strong></td>
+                            <td class="trow1" width="25%"><strong>{$lang->ougc_fileprofilefields_modcp_filter_order_dir}:</strong>
+                            </td>
                             <td class="trow1" width="75%">
                                 <select name="filter[order_dir]">
-                                    <option value="asc" {$selected_order_dir['asc']}>{$lang->ougc_fileprofilefields_modcp_filter_order_dir_asc}</option>
-                                    <option value="desc" {$selected_order_dir['desc']}>{$lang->ougc_fileprofilefields_modcp_filter_order_dir_desc}</option>
-                                    </label>
+                                    <option value="asc" {$selectedElementOrderAscending}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_dir_asc}
+                                    </option>
+                                    <option value="desc" {$selectedElementOrderDescending}>
+                                        {$lang->ougc_fileprofilefields_modcp_filter_order_dir_desc}
+                                    </option>
+                                </select>
                             </td>
                         </tr>
                     </table>
-                    <br />
+                    <br/>
                     <div align="center">
                         {$gobutton}
                     </div>

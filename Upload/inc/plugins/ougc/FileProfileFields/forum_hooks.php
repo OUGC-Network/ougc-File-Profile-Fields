@@ -479,12 +479,12 @@ function modcp_start()
         $filter_options['fids'] = [];
     }
 
-    $selected_fields = ['all' => ''];
+    $selectedElementProfileFieldsAll = '';
 
     if (isset($filter_options['fids'][-1])) {
         $filter_options['fids'] = [];
 
-        $selected_fields['all'] = ' selected="selected"';
+        $selectedElementProfileFieldsAll = ' selected="selected"';
     }
 
     if ($uid = $mybb->get_input('uid', MyBB::INPUT_INT)) {
@@ -708,20 +708,44 @@ function modcp_start()
         $selected_status[(int)$filter_options['status']] = ' checked="checked"';
     }
 
-    foreach (['username', 'filemime', 'filename', 'filesize', 'downloads', 'uploaddate', 'updatedate'] as $key) {
-        if (!empty($filter_options['order_by']) && $filter_options['order_by'] == $key) {
-            $selected_order_by[$key] = ' selected="selected"';
-        } else {
-            $selected_order_by[$key] = '';
+    $selectedElementUserName = $selectedElementFileMime = $selectedElementFileName = $selectedElementFileSize = $selectedElementFileDownloads = $selectedElementUploadDate = $selectedElementUpdateDate = '';
+
+    if (!empty($filter_options['order_by'])) {
+        if ($filter_options['order_by'] === 'username') {
+            $selectedElementUserName = 'selected="selected"';
+        }
+
+        if ($filter_options['order_by'] === 'filemime') {
+            $selectedElementFileMime = 'selected="selected"';
+        }
+
+        if ($filter_options['order_by'] === 'filename') {
+            $selectedElementFileName = 'selected="selected"';
+        }
+
+        if ($filter_options['order_by'] === 'filesize') {
+            $selectedElementFileSize = 'selected="selected"';
+        }
+
+        if ($filter_options['order_by'] === 'downloads') {
+            $selectedElementFileDownloads = 'selected="selected"';
+        }
+
+        if ($filter_options['order_by'] === 'uploaddate') {
+            $selectedElementUploadDate = 'selected="selected"';
+        }
+
+        if ($filter_options['order_by'] === 'updatedate') {
+            $selectedElementUpdateDate = 'selected="selected"';
         }
     }
 
-    foreach (['asc', 'desc'] as $key) {
-        if (!empty($filter_options['order_dir']) && $filter_options['order_dir'] == $key) {
-            $selected_order_dir[$key] = ' selected="selected"';
-        } else {
-            $selected_order_dir[$key] = '';
-        }
+    $selectedElementOrderAscending = $selectedElementOrderDescending = '';
+
+    if (!empty($filter_options['order_dir']) && $filter_options['order_dir'] === 'asc') {
+        $selectedElementOrderAscending = 'selected="selected"';
+    } else {
+        $selectedElementOrderDescending = 'selected="selected"';
     }
 
     $total_files = 0;
@@ -780,46 +804,38 @@ function modcp_start()
         $trow = alt_trow(true);
 
         while ($file = $db->fetch_array($query)) {
-            foreach (
-                [
-                    'aid',
-                    'uid',
-                    'fid',
-                    'filesize',
-                    'downloads',
-                    'uploaddate',
-                    'updatedate',
-                    'status',
-                    'mod_usergroup',
-                    'mod_displaygroup'
-                ] as $key
-            ) {
-                $file[$key] = (int)$file[$key];
-            }
+            $fileID = (int)$file['aid'];
 
-            $attachmentUrl = urlHandlerBuild(['aid' => $file['aid']]);
+            $fileUrl = urlHandlerBuild(['aid' => $file['aid']]);
 
             $thumbnailUrl = urlHandlerBuild(['thumbnail' => $file['aid']]);
 
-            foreach (['username', 'filename', 'name', 'thumbnail', 'md5hash', 'filemime', 'mod_username'] as $key) {
-                ${$key} = htmlspecialchars_uni((string)$file[$key]);
-            }
+            $userName = htmlspecialchars_uni($file['username']);
 
-            foreach (['downloads'] as $key) {
-                ${$key} = my_number_format($file[$key]);
-            }
+            $fileName = htmlspecialchars_uni($file['name']);
 
-            foreach (['filesize'] as $key) {
-                ${$key} = get_friendly_size($file[$key]);
-            }
+            $fileThumbnail = htmlspecialchars_uni($file['thumbnail']);
 
-            foreach (['uploaddate', 'updatedate'] as $key) {
-                ${$key} = my_date('normal', $file[$key]);
-            }
+            $md5hash = htmlspecialchars_uni($file['md5hash']);
 
-            $username = format_name($username, $file['usergroup'], $file['displaygroup']);
+            $moderatorUserName = htmlspecialchars_uni($file['mod_username']);
 
-            $profileLink = build_profile_link($username, $file['uid']);
+            $fileName = htmlspecialchars_uni($file['filename']);
+
+            $fileMime = htmlspecialchars_uni($file['filemime']);
+
+            $fileDownloads = my_number_format($file['downloads']);
+
+            $fileSize = get_friendly_size($file['filesize']);
+
+            $uploadDate = my_date('normal', $file['uploaddate']);
+
+            $updateDate = my_date('normal', $file['updatedate']);
+
+            $profileLink = build_profile_link(
+                format_name($userName, $file['usergroup'], $file['displaygroup']),
+                $file['uid']
+            );
 
             $ext = get_extension(my_strtolower($file['filename']));
 
@@ -844,12 +860,16 @@ function modcp_start()
                     break;
             }
 
-            $mod_profilelink = '';
+            $moderatorProfileLink = '';
 
             if ($file['muid']) {
-                $mod_username = format_name($mod_username, (int)$file['mod_usergroup'], (int)$file['mod_displaygroup']);
+                $moderatorUserName = format_name(
+                    $moderatorUserName,
+                    (int)$file['mod_usergroup'],
+                    (int)$file['mod_displaygroup']
+                );
 
-                $mod_profilelink = build_profile_link($mod_username, (int)$file['muid']);
+                $moderatorProfileLink = build_profile_link($moderatorUserName, (int)$file['muid']);
             }
 
             $files_list .= eval(getTemplate('moderatorControlPanelManagePageFilesItem'));
@@ -921,29 +941,24 @@ function modcp_start()
         $trow = alt_trow(true);
 
         while ($log = $db->fetch_array($query)) {
-            foreach (['aid', 'uid', 'filesize', 'dateline'] as $key) {
-                $log[$key] = (int)$log[$key];
-            }
+            $logID = (int)$log['lid'];
 
-            $attachmentUrl = urlHandlerBuild(['aid' => $log['aid']]);
+            $fileUrl = urlHandlerBuild(['aid' => $log['aid']]);
 
             $thumbnailUrl = urlHandlerBuild(['thumbnail' => $log['aid']]);
 
-            foreach (['username', 'filename'] as $key) {
-                ${$key} = htmlspecialchars_uni($log[$key]);
-            }
+            $userName = htmlspecialchars_uni($log['username']);
 
-            foreach (['filesize'] as $key) {
-                ${$key} = get_friendly_size($log[$key]);
-            }
+            $fileName = htmlspecialchars_uni($log['filename']);
 
-            foreach (['dateline'] as $key) {
-                ${$key} = my_date('normal', $log[$key]);
-            }
+            $fileSize = get_friendly_size($log['filesize']);
 
-            $username = format_name($username, $log['usergroup'], $log['displaygroup']);
+            $dateline = my_date('normal', $log['dateline']);
 
-            $profileLink = build_profile_link($username, $log['uid']);
+            $profileLink = build_profile_link(
+                format_name($userName, $log['usergroup'], $log['displaygroup']),
+                $log['uid']
+            );
 
             $ext = get_extension(my_strtolower($log['filename']));
 

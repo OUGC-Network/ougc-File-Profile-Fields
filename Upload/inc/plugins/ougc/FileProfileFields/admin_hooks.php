@@ -154,11 +154,11 @@ function admin_formcontainer_output_row(array &$args): array
 
         $field = "fid{$fid}";
 
-        $profilefield = false;
+        $profileFieldData = false;
 
         foreach ($pfcache as $pf) {
             if ($pf['fid'] == $fid) {
-                $profilefield = $pf;
+                $profileFieldData = $pf;
 
                 break;
             }
@@ -166,10 +166,12 @@ function admin_formcontainer_output_row(array &$args): array
 
         $preview = '';
 
-        if ($profilefield) {
+        if ($profileFieldData) {
+            $profileFieldID = (int)$profileFieldData['fid'];
+
             $seloptions = [];
 
-            $thing = explode("\n", $profilefield['type'], 2);
+            $thing = explode("\n", $profileFieldData['type'], 2);
 
             $type = $thing[0];
 
@@ -232,20 +234,20 @@ function admin_formcontainer_output_row(array &$args): array
 
                 urlHandlerSet(getSetting('fileName'));
 
-                $attachmentUrl = urlHandlerBuild(['aid' => $aid]);
+                $fileUrl = urlHandlerBuild(['aid' => $aid]);
 
                 $thumbnailUrl = urlHandlerBuild(['thumbnail' => $aid]);
 
                 if (
                     $file['thumbnail'] &&
-                    $profilefield['ougc_fileprofilefields_imageonly'] &&
-                    $profilefield['ougc_fileprofilefields_thumbnails'] &&
+                    $profileFieldData['ougc_fileprofilefields_imageonly'] &&
+                    $profileFieldData['ougc_fileprofilefields_thumbnails'] &&
                     file_exists(
-                        MYBB_ROOT . "{$profilefield['ougc_fileprofilefields_directory']}/{$file['thumbnail']}"
+                        MYBB_ROOT . "{$profileFieldData['ougc_fileprofilefields_directory']}/{$file['thumbnail']}"
                     )
                 ) {
                     // TODO: store thumbnail dimensions in DB
-                    $dims = explode('|', $profilefield['ougc_fileprofilefields_thumbnailsdimns']);
+                    $dims = explode('|', $profileFieldData['ougc_fileprofilefields_thumbnailsdimns']);
 
                     $width = (int)$dims[0];
 
@@ -262,7 +264,7 @@ function admin_formcontainer_output_row(array &$args): array
 
                 $checked = '';
 
-                if (isset($update_aids[$profilefield['fid']])) {
+                if (isset($update_aids[$profileFieldData['fid']])) {
                     $checked = ' checked="checked"';
                 }
 
@@ -274,7 +276,7 @@ function admin_formcontainer_output_row(array &$args): array
 
                 $checked = '';
 
-                if (isset($remove_aids[$profilefield['fid']])) {
+                if (isset($remove_aids[$profileFieldData['fid']])) {
                     $checked = ' checked="checked"';
                 }
 
@@ -291,7 +293,7 @@ function admin_formcontainer_output_row(array &$args): array
                 if (
                     $attachtype['ougc_fileprofilefields'] &&
                     is_member(
-                        $profilefield['ougc_fileprofilefields_types'],
+                        $profileFieldData['ougc_fileprofilefields_types'],
                         ['usergroup' => (int)$attachtype['atid'], 'additionalgroups' => '']
                     ) &&
                     ($attachtype['groups'] == -1 || is_member($attachtype['groups'], $user))
@@ -302,7 +304,7 @@ function admin_formcontainer_output_row(array &$args): array
                         $lang->ougc_fileprofilefields_info_types_item,
                         my_strtoupper($ext),
                         get_friendly_size(
-                            (int)$profilefield['ougc_fileprofilefields_maxsize'] ?: (int)$attachtype['maxsize']
+                            (int)$profileFieldData['ougc_fileprofilefields_maxsize'] ?: (int)$attachtype['maxsize']
                         )
                     );
                 }
@@ -313,6 +315,8 @@ function admin_formcontainer_output_row(array &$args): array
 
                 $accepted_formats = '.' . implode(', .', array_keys($exts)) . ', ' . implode(', ', $valid_mimes);
             }
+
+            $profileFieldLength = (int)$profileFieldData['length'];
 
             $code = eval(getTemplate('adminControlPanel'));
 

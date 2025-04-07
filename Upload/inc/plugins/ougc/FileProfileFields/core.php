@@ -843,7 +843,7 @@ function renderUserFile(
 
     urlHandlerSet(getSetting('fileName'));
 
-    $attachmentUrl = urlHandlerBuild(['aid' => $attachmentID]);
+    $fileUrl = urlHandlerBuild(['aid' => $attachmentID]);
 
     $thumbnailUrl = urlHandlerBuild(['thumbnail' => $attachmentID]);
 
@@ -944,7 +944,7 @@ function buildFileFields(
     if ($fileData = query_file($attachmentID)) {
         urlHandlerSet(getSetting('fileName'));
 
-        $attachmentUrl = urlHandlerBuild(['aid' => $attachmentID]);
+        $fileUrl = urlHandlerBuild(['aid' => $attachmentID]);
 
         $thumbnailUrl = urlHandlerBuild(['thumbnail' => $attachmentID]);
 

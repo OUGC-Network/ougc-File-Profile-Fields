@@ -2,7 +2,7 @@
     <td class="{$trow} {$status_class}">{$profileLink}</td>
     <td class="{$trow} {$status_class}">
         {$icon}
-        <a href="{$mybb->settings['bburl']}/{$attachmentUrl}" target="_blank">
+        <a href="{$mybb->settings['bburl']}/{$fileUrl}" target="_blank">
             {$fileName}
         </a>
         <div class="smalltext">
@@ -12,12 +12,12 @@
         </div>
     </td>
     <td class="{$trow} {$status_class}" align="center">{$field}</td>
-    <td class="{$trow} {$status_class}" align="center">{$downloads}</td>
-    <td class="{$trow} {$status_class}" align="center">{$uploaddate}</td>
-    <td class="{$trow} {$status_class}" align="center">{$updatedate}</td>
+    <td class="{$trow} {$status_class}" align="center">{$fileDownloads}</td>
+    <td class="{$trow} {$status_class}" align="center">{$uploadDate}</td>
+    <td class="{$trow} {$status_class}" align="center">{$updateDate}</td>
     <td class="{$trow} {$status_class}" align="center">{$status}</td>
-    <td class="{$trow} {$status_class}" align="center">{$mod_profilelink}</td>
-    <td class="{$trow} {$status_class}" width="1" align="center"><input type="checkbox" class="checkbox"
-                                                                        name="check[{$file['aid']}]"
-                                                                        value="{$file['aid']}"/></td>
+    <td class="{$trow} {$status_class}" align="center">{$moderatorProfileLink}</td>
+    <td class="{$trow} {$status_class}" width="1" align="center">
+        <input type="checkbox" class="checkbox" name="check[{$fileID}]" value="{$fileID}"/>
+    </td>
 </tr>
