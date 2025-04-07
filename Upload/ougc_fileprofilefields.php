@@ -49,6 +49,10 @@ if (!$working_dir) {
 
 global $cache, $mybb, $db, $lang, $plugins;
 
+$currentUserID = (int)$mybb->user['uid'];
+
+$thumbnail = $mybb->get_input('thumbnail', MyBB::INPUT_INT);
+
 if (OUGC_FILEPROFILEFIELDS_FULL) {
     require_once $working_dir . '/global.php';
 
@@ -67,8 +71,6 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
     }
 
     $current_page = my_strtolower(basename(THIS_SCRIPT));
-
-    $thumbnail = $mybb->get_input('thumbnail', MyBB::INPUT_INT);
 
     if ($thumbnail) {
         define('NO_ONLINE', 1);
@@ -92,7 +94,7 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
         )) {
         $mybb->settings['bblanguage'] = $mybb->get_input('language');
         // If user is logged in, update their language selection with the new one
-        if ($mybb->user['uid']) {
+        if ($currentUserID) {
             if (isset($mybb->cookies['mybblang'])) {
                 my_unsetcookie('mybblang');
             }
@@ -100,14 +102,14 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
             $db->update_query(
                 'users',
                 ['language' => $db->escape_string($mybb->settings['bblanguage'])],
-                "uid = '{$mybb->user['uid']}'"
+                "uid = '{$currentUserID}'"
             );
         } // Guest = cookie
         else {
             my_setcookie('mybblang', $mybb->settings['bblanguage']);
         }
         $mybb->user['language'] = $mybb->settings['bblanguage'];
-    } elseif (!$mybb->user['uid'] && !empty($mybb->cookies['mybblang']) && $lang->language_exists(
+    } elseif (!$currentUserID && !empty($mybb->cookies['mybblang']) && $lang->language_exists(
             $mybb->cookies['mybblang']
         )) {
         $mybb->settings['bblanguage'] = $mybb->cookies['mybblang'];
@@ -206,19 +208,19 @@ $plugins->run_hooks('ougc_fileprofilefields_download_end');
 if (!$thumbnail) {
     $last_download = 0;
 
-    $uid = (int)$mybb->user['uid'];
+    $fileUserID = (int)$file['uid'];
 
     $update_downloads = $file['status'] === 1 && (
-            $mybb->user['uid'] && $mybb->settings['ougc_fileprofilefields_author_downloads'] || ($file['uid'] != $mybb->user['uid'])
+            $mybb->user['uid'] && $mybb->settings['ougc_fileprofilefields_author_downloads'] || ($fileUserID != $currentUserID)
         );
 
-    if ($update_downloads && $mybb->settings['ougc_fileprofilefieldsdownload_interval']) {
-        $timecut = TIME_NOW - (int)$mybb->settings['ougc_fileprofilefieldsdownload_interval'];
+    if ($update_downloads && !empty($mybb->settings['ougc_fileprofilefields_download_interval'])) {
+        $timecut = TIME_NOW - (int)$mybb->settings['ougc_fileprofilefields_download_interval'];
 
         $query = $db->simple_select(
             'ougc_fileprofilefields_logs',
             'lid',
-            "uid='{$uid}' AND aid='{$aid}' AND dateline>='{$timecut}'",
+            "uid='{$currentUserID}' AND aid='{$aid}' AND dateline>='{$timecut}'",
             ['limit' => 1]
         );
 
@@ -232,13 +234,13 @@ if (!$thumbnail) {
     }
 
     $db->insert_query('ougc_fileprofilefields_logs', [
-        'uid' => $uid,
+        'uid' => $currentUserID,
         'aid' => $aid,
         //'ipaddress' => $db->escape_binary(my_inet_pton(get_ip())),
         'dateline' => TIME_NOW,
     ]);
     /*$lid = (int)$db->insert_query('ougc_fileprofilefields_logs', [
-        'uid' => $uid,
+        'uid' => $currentUserID,
         'aid' => $aid,
         'dateline' => TIME_NOW,
     ]);
