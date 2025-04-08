@@ -196,6 +196,11 @@ function admin_formcontainer_output_row(array &$args): array
             $style = $accepted_formats = $update = $remove = '';
 
             if ($file = query_file($aid)) {
+                $userID = $file['uid'];
+
+                $fieldID = $file['fid'];
+
+
                 $style = 'none';
 
                 load_language();
@@ -220,13 +225,13 @@ function admin_formcontainer_output_row(array &$args): array
 
                 $thumbnail = htmlspecialchars_uni($file['thumbnail']);
 
-                $status = '';
+                $status = $statusDescription = '';
 
                 if ($file['status'] !== 1) {
-                    $description = $lang->ougc_fileprofilefields_status_notification_onqueue;
+                    $statusDescription = $lang->ougc_fileprofilefields_status_notification_onqueue;
 
                     if ($file['status'] === -1) {
-                        $description = $lang->ougc_fileprofilefields_status_notification_unapproved;
+                        $statusDescription = $lang->ougc_fileprofilefields_status_notification_unapproved;
                     }
 
                     $status = eval(getTemplate('adminControlPanelStatus'));
