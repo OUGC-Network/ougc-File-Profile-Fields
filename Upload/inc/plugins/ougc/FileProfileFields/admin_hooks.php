@@ -715,7 +715,7 @@ function admin_tools_do_recount_rebuild(): bool
     foreach (
         queryFilesMultiple(
             [],
-            '*',
+            'aid, uid, fid',
             ['limit' => $queryLimit, 'limit_start' => $startPage]
         ) as $fileData
     ) {

@@ -1029,7 +1029,7 @@ function memberlist_user(array &$userData): array
         $fileIDs = implode("','", $fileIDs);
 
         $fileProfileFieldsCachedUsersData[$userID] = queryFilesMultiple(
-            ["uid='{$userID}'", "aid IN ('{$fileIDs}')", "status='1'"]
+            ["uid='{$userID}'", "aid IN ('{$fileIDs}')"]
         );
     }
 
@@ -1075,6 +1075,8 @@ function ougc_profile_fields_categories_build_fields_categories_end(array &$hook
     if (!empty($userFile)) {
         $hookArguments['userFieldValue'] = $userFile;
     }
+
+    $hookArguments['fileData'] = $fileProfileFieldsCachedUsersData[$userID][$fileID];
 
     return $hookArguments;
 }

@@ -139,7 +139,7 @@ function getSetting(string $settingKey = '')
     global $mybb;
 
     return SETTINGS[$settingKey] ?? (
-        $mybb->settings['ougcCustomFieldsSearch_' . $settingKey] ?? false
+        $mybb->settings['ougcFileProfileFields_' . $settingKey] ?? false
     );
 }
 
