@@ -28,16 +28,16 @@
 
 declare(strict_types=1);
 
-// Set to true to load the full global.php file
 use function ougc\FileProfileFields\Core\getProfileFieldsCache;
 use function ougc\FileProfileFields\Core\load_language;
 use function ougc\FileProfileFields\Core\query_file;
 
-const OUGC_FILEPROFILEFIELDS_FULL = false;
+use const ougc\FileProfileFields\LOAD_FULL_LOGIC;
+
+// Set to true to load the full global.php file
+define('ougc\FileProfileFields\LOAD_FULL_LOGIC', false);
 
 const IN_MYBB = true;
-
-const NO_ONLINE = true;
 
 const THIS_SCRIPT = 'profilefile.php';
 
@@ -51,7 +51,7 @@ global $cache, $mybb, $db, $lang, $plugins;
 
 $currentUserID = (int)$mybb->user['uid'];
 
-if (OUGC_FILEPROFILEFIELDS_FULL) {
+if (LOAD_FULL_LOGIC) {
     require_once $working_dir . '/global.php';
 
     $thumbnail = $mybb->get_input('thumbnail', MyBB::INPUT_INT);
@@ -74,7 +74,7 @@ if (OUGC_FILEPROFILEFIELDS_FULL) {
 
     $current_page = my_strtolower(basename(THIS_SCRIPT));
 
-    if ($thumbnail) {
+    if ($thumbnail && !defined('NO_ONLINE')) {
         define('NO_ONLINE', 1);
     }
 
@@ -140,71 +140,75 @@ if (!function_exists('ougc_fileprofilefields_info')) {
 
 // Find the AID we're looking for
 if ($thumbnail) {
-    $aid = $mybb->get_input('thumbnail', MyBB::INPUT_INT);
+    $fileID = $mybb->get_input('thumbnail', MyBB::INPUT_INT);
 } else {
-    $aid = $mybb->get_input('aid', MyBB::INPUT_INT);
+    $fileID = $mybb->get_input('aid', MyBB::INPUT_INT);
 }
 
-$file = query_file($aid);
+$whereClauses = ["aid='{$fileID}'"];
 
-if (!$file) {
+if (!is_member($mybb->settings['ougc_fileprofilefields_groups_moderators'])) {
+    $whereClauses[] = "status='1'";
+}
+
+$fileData = query_file(
+    $whereClauses,
+    ['thumbnail', 'fid', 'name', 'filename', 'filemime', 'filesize', 'uid', 'status'],
+    ['limit' => 1]
+);
+
+if (!$fileData) {
     $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
 $plugins->run_hooks('ougc_fileprofilefields_download_start');
 
-if (!$file['thumbnail'] && $thumbnail) {
+if (!$fileData['thumbnail'] && $thumbnail) {
     $errorFunction($lang->ougc_fileprofilefields_errors_invalid_thumbnail);
 }
 
-$attachtypes = $cache->read('attachtypes');
+$attachmentTypes = $cache->read('attachtypes');
 
-$ext = get_extension($file['filename']);
+$fileName = ltrim(basename(' ' . $fileData['filename']));
 
-if (empty($attachtypes[$ext])) {
+$ext = get_extension($fileName);
+
+if (empty($attachmentTypes[$ext])) {
     $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
-$attachtype = $attachtypes[$ext];
+$attachmentTypeData = $attachmentTypes[$ext];
 
-if (empty($attachtype['ougc_fileprofilefields']) || !is_member($attachtype['groups'])) {
+if (empty($attachmentTypeData['ougc_fileprofilefields']) || !is_member($attachmentTypeData['groups'])) {
     $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
-$profilefields = getProfileFieldsCache();
+$profileFieldData = null;
 
-$profilefield = null;
-
-foreach ($profilefields as $pf) {
-    if ($pf['fid'] == $file['fid']) {
-        $profilefield = $pf;
+foreach (getProfileFieldsCache() as $pf) {
+    if ($pf['fid'] == $fileData['fid']) {
+        $profileFieldData = $pf;
 
         break;
     }
 }
 
 if (
-    empty($profilefield) ||
-    !is_member($profilefield['viewableby']) ||
+    empty($profileFieldData) ||
+    !is_member($profileFieldData['viewableby']) ||
     !is_member(
-        $profilefield['ougc_fileprofilefields_types'],
-        ['usergroup' => (int)$attachtype['atid'], 'additionalgroups' => '']
+        $profileFieldData['ougc_fileprofilefields_types'],
+        ['usergroup' => (int)$attachmentTypeData['atid'], 'additionalgroups' => '']
     ) ||
     $thumbnail && (
-        empty($profilefield['ougc_fileprofilefields_imageonly']) ||
-        empty($profilefield['ougc_fileprofilefields_thumbnails'])
+        empty($profileFieldData['ougc_fileprofilefields_imageonly']) ||
+        empty($profileFieldData['ougc_fileprofilefields_thumbnails'])
     )
 ) {
     $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
 }
 
-$file['status'] = (int)$file['status'];
-
-if ($file['status'] !== 1 && !is_member($mybb->settings['ougc_fileprofilefields_groups_moderators'])) {
-    $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
-}
-
-$file['filename'] = ltrim(basename(' ' . $file['filename']));
+$fileStatus = (int)$fileData['status'];
 
 $plugins->run_hooks('ougc_fileprofilefields_download_end');
 
@@ -212,9 +216,9 @@ $plugins->run_hooks('ougc_fileprofilefields_download_end');
 if (!$thumbnail) {
     $last_download = 0;
 
-    $fileUserID = (int)$file['uid'];
+    $fileUserID = (int)$fileData['uid'];
 
-    $update_downloads = $file['status'] === 1 && (
+    $update_downloads = $fileStatus === 1 && (
             $mybb->user['uid'] && $mybb->settings['ougc_fileprofilefields_author_downloads'] || ($fileUserID != $currentUserID)
         );
 
@@ -224,7 +228,7 @@ if (!$thumbnail) {
         $query = $db->simple_select(
             'ougc_fileprofilefields_logs',
             'lid',
-            "uid='{$currentUserID}' AND aid='{$aid}' AND dateline>='{$timecut}'",
+            "uid='{$currentUserID}' AND aid='{$fileID}' AND dateline>='{$timecut}'",
             ['limit' => 1]
         );
 
@@ -234,18 +238,18 @@ if (!$thumbnail) {
     if ($update_downloads) {
         $db->update_query('ougc_fileprofilefields_files', [
             'downloads' => '`downloads`+1'
-        ], "aid='{$aid}'", '', true);
+        ], "aid='{$fileID}'", '', true);
     }
 
     $db->insert_query('ougc_fileprofilefields_logs', [
         'uid' => $currentUserID,
-        'aid' => $aid,
+        'aid' => $fileID,
         //'ipaddress' => $db->escape_binary(my_inet_pton(get_ip())),
         'dateline' => TIME_NOW,
     ]);
     /*$lid = (int)$db->insert_query('ougc_fileprofilefields_logs', [
         'uid' => $currentUserID,
-        'aid' => $aid,
+        'aid' => $fileID,
         'dateline' => TIME_NOW,
     ]);
 
@@ -253,17 +257,17 @@ if (!$thumbnail) {
 }
 
 if ($thumbnail) {
-    $filepath = MYBB_ROOT . "{$profilefield['ougc_fileprofilefields_directory']}/{$file['thumbnail']}";
+    $filepath = MYBB_ROOT . "{$profileFieldData['ougc_fileprofilefields_directory']}/{$fileData['thumbnail']}";
 
     if (!file_exists($filepath)) {
         $errorFunction($lang->ougc_fileprofilefields_errors_invalid_file);
     }
 
-    $ext = get_extension($file['thumbnail']);
+    $ext = get_extension($fileData['thumbnail']);
 
-    header("Content-disposition: filename=\"{$file['filename']}\"");
+    header("Content-disposition: filename=\"{$fileName}\"");
 
-    header("Content-type: {$file['filemime']}");
+    header("Content-type: {$fileData['filemime']}");
 
     // TODO: store thumbnail size in DB
     header('Content-length: ' . @filesize($filepath));
@@ -276,22 +280,22 @@ if ($thumbnail) {
 
     fclose($handle);
 } else {
-    $filepath = MYBB_ROOT . "{$profilefield['ougc_fileprofilefields_directory']}/{$file['name']}";
+    $filepath = MYBB_ROOT . "{$profileFieldData['ougc_fileprofilefields_directory']}/{$fileData['name']}";
 
     if (!file_exists($filepath)) {
         $errorFunction($lang->ougc_fileprofilefields_errors_invalid_thumbnail);
     }
 
-    $ext = get_extension($file['thumbnail']);
+    $ext = get_extension($fileData['thumbnail']);
 
-    $filetype = $file['filemime'];
+    $filetype = $fileData['filemime'];
 
     // TODO: Add a setting to force download
 
     $disposition = 'attachment';
 
     if (!$mybb->settings['ougc_fileprofilefields_force_downloads']) {
-        switch ($file['filemime']) {
+        switch ($fileData['filemime']) {
             case 'application/pdf':
             case 'image/bmp':
             case 'image/gif':
@@ -313,18 +317,18 @@ if ($thumbnail) {
     header("Content-type: {$filetype}");
 
     if (strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'msie') !== false) {
-        header("Content-disposition: attachment; filename=\"{$file['filename']}\"");
+        header("Content-disposition: attachment; filename=\"{$fileName}\"");
     } else {
-        header("Content-disposition: {$disposition}; filename=\"{$file['filename']}\"");
+        header("Content-disposition: {$disposition}; filename=\"{$fileName}\"");
     }
 
     if (strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'msie 6.0') !== false) {
         header('Expires: -1');
     }
 
-    header("Content-length: {$file['filesize']}");
+    header("Content-length: {$fileData['filesize']}");
 
-    header('Content-range: bytes=0-' . ($file['filesize'] - 1) . "/{$file['filesize']}");
+    header('Content-range: bytes=0-' . ($fileData['filesize'] - 1) . "/{$fileData['filesize']}");
 
     $handle = fopen($filepath, 'rb');
 

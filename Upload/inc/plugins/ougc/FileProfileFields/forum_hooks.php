@@ -42,7 +42,6 @@ use function ougc\FileProfileFields\Core\urlHandlerBuild;
 use function ougc\FileProfileFields\Core\delete_file;
 use function ougc\FileProfileFields\Core\get_userfields;
 use function ougc\FileProfileFields\Core\load_language;
-use function ougc\FileProfileFields\Core\query_file;
 use function ougc\FileProfileFields\Core\queryFilesMultiple;
 use function ougc\FileProfileFields\Core\remove_files;
 use function ougc\FileProfileFields\Core\renderUserFile;
@@ -52,7 +51,6 @@ use function ougc\FileProfileFields\Core\store_file;
 use function ougc\FileProfileFields\Core\upload_file;
 use function ougc\FileProfileFields\Core\getTemplate;
 
-use const ougc\FileProfileFields\Core\TEMPLATE_SECTION_MEMBER_LIST;
 use const TIME_NOW;
 
 function global_start09(): bool
@@ -362,8 +360,10 @@ function ougc_file_profile_fields_user_control_panel80(array &$hookArguments): a
     return $hookArguments;
 }
 
+// profiles
 function ougc_file_profile_fields_profile(array &$hookArguments): array
 {
+    asd5();
     postbit_start($hookArguments);
 
     if (empty($hookArguments['userData'])) {
@@ -407,7 +407,7 @@ function postbit_start(array &$hookArguments): array
 
         isset($customFileProfileFields) || $customFileProfileFields = [];
 
-        foreach (\ougc\FileProfileFields\Core\getProfileFieldsCache() as $profileField) {
+        foreach (getProfileFieldsCache() as $profileField) {
             $profileFieldID = (int)$profileField['fid'];
 
             $fieldIdentifier = "fid{$profileFieldID}";
@@ -1018,18 +1018,18 @@ function memberlist_user(array &$userData): array
     }
 
     foreach ($userData as $userDataFieldKey => $userDataFieldValue) {
-        $attachmentID = (int)$userDataFieldValue;
+        $fileID = (int)$userDataFieldValue;
 
-        if (my_strpos($userDataFieldKey, 'fid') === 0 && !empty($attachmentID)) {
-            $attachmentIDs[] = $attachmentID;
+        if (my_strpos($userDataFieldKey, 'fid') === 0 && !empty($fileID)) {
+            $fileIDs[] = $fileID;
         }
     }
 
-    if (!empty($attachmentIDs)) {
-        $attachmentIDs = implode("','", $attachmentIDs);
+    if (!empty($fileIDs)) {
+        $fileIDs = implode("','", $fileIDs);
 
         $fileProfileFieldsCachedUsersData[$userID] = queryFilesMultiple(
-            ["uid='{$userID}'", "aid IN ('{$attachmentIDs}')"]
+            ["uid='{$userID}'", "aid IN ('{$fileIDs}')", "status='1'"]
         );
     }
 
@@ -1053,16 +1053,16 @@ function ougc_profile_fields_categories_build_fields_categories_end(array &$hook
 
     $userID = (int)$hookArguments['userData']['uid'];
 
-    $attachmentID = is_numeric($hookArguments['userFieldValue']) ? (int)$hookArguments['userFieldValue'] : 0;
+    $fileID = is_numeric($hookArguments['userFieldValue']) ? (int)$hookArguments['userFieldValue'] : 0;
 
-    if (empty($fileProfileFieldsCachedUsersData[$userID]) || empty($fileProfileFieldsCachedUsersData[$userID][$attachmentID])) {
+    if (empty($fileProfileFieldsCachedUsersData[$userID]) || empty($fileProfileFieldsCachedUsersData[$userID][$fileID])) {
         return $hookArguments;
     }
 
     $categoryID = (int)$hookArguments['categoryData']['cid'];
 
     $userFile = renderUserFile(
-        $fileProfileFieldsCachedUsersData[$userID][$attachmentID],
+        $fileProfileFieldsCachedUsersData[$userID][$fileID],
         $hookArguments['profileFieldData'],
         $hookArguments['templatePrefix'],
         $categoryID

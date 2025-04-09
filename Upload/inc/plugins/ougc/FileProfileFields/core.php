@@ -255,11 +255,36 @@ function store_file(array $insert_data): int
     return $aid;
 }
 
-function query_file(int $aid): array
-{
+function query_file(
+    array $whereClauses,
+    array $queryFields = [
+        'uid',
+        'muid',
+        'fid',
+        'filename',
+        'filesize',
+        'filemime',
+        'name',
+        'downloads',
+        'thumbnail',
+        'dimensions',
+        'md5hash',
+        'uploaddate',
+        'updatedate',
+        'status'
+    ],
+    array $queryOptions = []
+): array {
     global $db;
 
-    $query = $db->simple_select('ougc_fileprofilefields_files', '*', "aid='{$aid}'");
+    $queryFields[] = 'aid';
+
+    $query = $db->simple_select(
+        'ougc_fileprofilefields_files',
+        implode(',', $queryFields),
+        implode(' AND ', $whereClauses),
+        $queryOptions
+    );
 
     if ($db->num_rows($query)) {
         return (array)$db->fetch_array($query);
@@ -839,13 +864,13 @@ function renderUserFile(
         }
     }
 
-    $attachmentID = (int)$fileData['aid'];
+    $fileID = (int)$fileData['aid'];
 
     urlHandlerSet(getSetting('fileName'));
 
-    $fileUrl = urlHandlerBuild(['aid' => $attachmentID]);
+    $fileUrl = urlHandlerBuild(['aid' => $fileID]);
 
-    $thumbnailUrl = urlHandlerBuild(['thumbnail' => $attachmentID]);
+    $thumbnailUrl = urlHandlerBuild(['thumbnail' => $fileID]);
 
     if (
         $fileData['thumbnail'] &&
@@ -866,11 +891,11 @@ function renderUserFile(
             return eval(getTemplate("{$templatePrefix}Thumbnail"));
         }
     } elseif (customTemplateIsSet("{$templatePrefix}Category{$categoryID}")) {
-        return eval(getTemplate("{$templatePrefix}Category{$categoryID}", false));
+        return eval(getTemplate("{$templatePrefix}Category{$categoryID}"));
     } elseif (customTemplateIsSet("{$templatePrefix}Field{$profileFieldID}")) {
-        return eval(getTemplate("{$templatePrefix}Field{$profileFieldID}", false));
+        return eval(getTemplate("{$templatePrefix}Field{$profileFieldID}"));
     } else {
-        return eval(getTemplate($templatePrefix, false));
+        return eval(getTemplate($templatePrefix));
     }
 }
 
@@ -897,7 +922,7 @@ function buildFileFields(
     $removeRow = $updateRow = $statusCode = '';
 
     if ($templatePrefix == 'postbit') {
-        //$attachmentID = (int)$hookArguments['post'][$fieldIdentifier];
+        //$fileID = (int)$hookArguments['post'][$fieldIdentifier];
 
         if (isset($profilefields)) {
             //$filePreview = &$profilefields;
@@ -919,7 +944,7 @@ function buildFileFields(
 
     $fieldIdentifier = "fid{$profileFieldID}";
 
-    $attachmentID = isset($userData[$fieldIdentifier]) ? (int)$userData[$fieldIdentifier] : 0;
+    $fileID = isset($userData[$fieldIdentifier]) ? (int)$userData[$fieldIdentifier] : 0;
 
     $userID = (int)$userData['uid'];
 
@@ -941,17 +966,37 @@ function buildFileFields(
         $userData[$fieldIdentifier] = '';
     }
 
-    if ($fileData = query_file($attachmentID)) {
+    $whereClauses = ["aid='{$fileID}'"];
+
+    if (!is_member($mybb->settings['ougc_fileprofilefields_groups_moderators'])) {
+        $whereClauses[] = "status='1'";
+    }
+
+    if ($fileData = query_file(
+        $whereClauses,
+        [
+            'filename',
+            'filesize',
+            'downloads',
+            'md5hash',
+            'uploaddate',
+            'updatedate',
+            'thumbnail',
+            'status',
+            'dimensions'
+        ],
+        ['limit' => 1]
+    )) {
         urlHandlerSet(getSetting('fileName'));
 
-        $fileUrl = urlHandlerBuild(['aid' => $attachmentID]);
+        $fileUrl = urlHandlerBuild(['aid' => $fileID]);
 
-        $thumbnailUrl = urlHandlerBuild(['thumbnail' => $attachmentID]);
+        $thumbnailUrl = urlHandlerBuild(['thumbnail' => $fileID]);
 
-        $fileData['status'] = (int)$fileData['status'];
+        $fileStatus = (int)$fileData['status'];
 
         if (
-            $fileData['status'] === 1 ||
+            $fileStatus === 1 ||
             $isModerator ||
             !in_array($templatePrefix, ['profile', 'postbit'])
         ) {
@@ -979,10 +1024,10 @@ function buildFileFields(
 
             $thumbnail = htmlspecialchars_uni($fileData['thumbnail']);
 
-            if ($fileData['status'] !== 1) {
+            if ($fileStatus !== 1) {
                 $statusDescription = $lang->ougc_fileprofilefields_status_notification_onqueue;
 
-                if ($fileData['status'] === -1) {
+                if ($fileStatus === -1) {
                     $statusDescription = $lang->ougc_fileprofilefields_status_notification_unapproved;
                 }
 

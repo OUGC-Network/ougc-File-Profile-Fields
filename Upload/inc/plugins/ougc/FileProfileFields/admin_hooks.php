@@ -195,7 +195,11 @@ function admin_formcontainer_output_row(array &$args): array
 
             $style = $accepted_formats = $update = $remove = '';
 
-            if ($file = query_file($aid)) {
+            if ($file = query_file(
+                ["aid='{$aid}'"],
+                ['uid', 'fid', 'filename', 'filesize', 'downloads', 'md5hash', 'uploaddate', 'updatedate'],
+                ['limit' => 1]
+            )) {
                 $userID = $file['uid'];
 
                 $fieldID = $file['fid'];
