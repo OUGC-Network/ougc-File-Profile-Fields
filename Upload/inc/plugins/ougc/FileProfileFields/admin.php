@@ -211,8 +211,8 @@ function pluginInformation(): array
         'website' => 'https://ougc.network',
         'author' => 'Omar G.',
         'authorsite' => 'https://ougc.network',
-        'version' => '1.8.4',
-        'versioncode' => 1804,
+        'version' => '1.8.5',
+        'versioncode' => 1805,
         'compatibility' => '18*',
         'codename' => 'ougc_fileprofilefields',
         'pl' => [
