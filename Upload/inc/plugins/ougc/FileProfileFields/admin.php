@@ -32,20 +32,182 @@ namespace ougc\FileProfileFields\Admin;
 
 use DirectoryIterator;
 
-use function ougc\FileProfileFields\Core\load_language;
-use function ougc\FileProfileFields\Core\load_pluginlibrary;
+use function ougc\FileProfileFields\Core\languageLoad;
 
 use const ougc\FileProfileFields\Core\ROOT;
 
-function _info(): array
+const TABLES_DATA = [
+    'ougc_fileprofilefields_files' => [
+        'aid' => [
+            'type' => 'INT',
+            'unsigned' => true,
+            'auto_increment' => true,
+            'primary_key' => true
+        ],
+        'uid' => [
+            'type' => 'INT',
+            'unsigned' => true
+        ],
+        'muid' => [
+            'type' => 'INT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'fid' => [
+            'type' => 'INT',
+            'unsigned' => true
+        ],
+        'filename' => [
+            'type' => 'VARCHAR',
+            'size' => 255,
+            'default' => ''
+        ],
+        'filesize' => [
+            'type' => 'INT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'filemime' => [
+            'type' => 'VARCHAR',
+            'size' => 64,
+            'default' => ''
+        ],
+        'name' => [
+            'type' => 'VARCHAR',
+            'size' => 255,
+            'default' => ''
+        ],
+        'downloads' => [
+            'type' => 'INT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'thumbnail' => [
+            'type' => 'VARCHAR',
+            'size' => 255,
+            'default' => ''
+        ],
+        'dimensions' => [
+            'type' => 'VARCHAR',
+            'size' => 11,
+            'default' => ''
+        ],
+        'md5hash' => [
+            'type' => 'VARCHAR',
+            'size' => 32,
+            'default' => ''
+        ],
+        'uploaddate' => [
+            'type' => 'INT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'updatedate' => [
+            'type' => 'INT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'status' => [
+            'type' => 'TINYINT',
+            //'unsigned' => true,
+            'default' => 1//all approved by default
+        ],
+        'unique_key' => ['uidfid' => 'uid,fid']
+    ],
+    'ougc_fileprofilefields_logs' => [
+        'lid' => [
+            'type' => 'INT',
+            'unsigned' => true,
+            'auto_increment' => true,
+            'primary_key' => true
+        ],
+        'uid' => [
+            'type' => 'INT',
+            'unsigned' => true
+        ],
+        'aid' => [
+            'type' => 'INT',
+            'unsigned' => true
+        ],
+        'ipaddress' => [
+            'type' => 'VARBINARY',
+            'size' => 16,
+            'default' => ''
+        ],
+        'dateline' => [
+            'type' => 'INT',
+            'unsigned' => true,
+            'default' => 0
+        ]
+    ]
+];
+
+const FIELDS_DATA = [
+    'profilefields' => [
+        'ougc_fileprofilefields_types' => [
+            'type' => 'VARCHAR',
+            'size' => 50,
+            'default' => '-1'
+        ],
+        'ougc_fileprofilefields_maxsize' => [ // empty for attachment setting
+            'type' => 'INT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'ougc_fileprofilefields_directory' => [
+            'type' => 'VARCHAR',
+            'size' => 255,
+            'default' => ''
+        ],
+        'ougc_fileprofilefields_customoutput' => [
+            'type' => 'TINYINT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'ougc_fileprofilefields_imageonly' => [
+            'type' => 'TINYINT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'ougc_fileprofilefields_imagemindims' => [
+            'type' => 'VARCHAR',
+            'size' => 11,
+            'default' => ''
+        ],
+        'ougc_fileprofilefields_imagemaxdims' => [
+            'type' => 'VARCHAR',
+            'size' => 11,
+            'default' => ''
+        ],
+        'ougc_fileprofilefields_thumbnails' => [
+            'type' => 'TINYINT',
+            'unsigned' => true,
+            'default' => 0
+        ],
+        'ougc_fileprofilefields_thumbnailsdimns' => [
+            'type' => 'VARCHAR',
+            'size' => 11,
+            'default' => ''
+        ],
+    ],
+    'attachtypes' => [
+        'ougc_fileprofilefields' => [
+            'type' => 'TINYINT',
+            'unsigned' => true,
+            'default' => 0
+        ]
+    ]
+];
+
+function pluginInformation(): array
 {
     global $lang;
 
-    load_language();
+    languageLoad();
 
     return [
         'name' => 'ougc File Profile Fields',
-        'description' => $lang->setting_group_ougc_fileprofilefields_desc . _edits_description(),
+        'description' => $lang->setting_group_ougc_fileprofilefields_desc . coreEditsDescription(),
         'website' => 'https://ougc.network',
         'author' => 'Omar G.',
         'authorsite' => 'https://ougc.network',
@@ -60,11 +222,11 @@ function _info(): array
     ];
 }
 
-function _activate(): bool
+function pluginActivation(): bool
 {
     global $PL, $lang, $cache, $db;
 
-    load_pluginlibrary();
+    pluginLibraryLoad();
 
     // TODO: Maybe add some approval system
     $PL->settings(
@@ -147,15 +309,15 @@ function _activate(): bool
         $plugins = [];
     }
 
-    $_info = _info();
+    $_info = pluginInformation();
 
     if (!isset($plugins['fileprofilefields'])) {
         $plugins['fileprofilefields'] = $_info['versioncode'];
     }
 
-    _db_verify_tables();
+    dbVerifyTables();
 
-    _db_verify_columns();
+    dbVerifyColumns();
 
     /*~*~* RUN UPDATES START *~*~*/
 
@@ -168,44 +330,46 @@ function _activate(): bool
     return true;
 }
 
-function _install(): bool
+function pluginInstallation(): bool
 {
-    _db_verify_tables();
+    dbVerifyTables();
 
-    _db_verify_columns();
+    dbVerifyColumns();
 
     return true;
 }
 
-function _is_installed(): bool
+function pluginIsInstalled(): bool
 {
-    static $installed = null;
+    static $isInstalled = null;
 
-    if ($installed === null) {
+    if ($isInstalled === null) {
         global $db;
 
-        foreach (_db_tables() as $name => $table) {
-            $installed = $db->table_exists($name);
+        $isInstalledEach = true;
 
-            break;
+        foreach (TABLES_DATA as $tableName => $tableColumns) {
+            $isInstalledEach = $db->table_exists($tableName) && $isInstalledEach;
         }
+
+        $isInstalled = $isInstalledEach;
     }
 
-    return $installed;
+    return $isInstalled;
 }
 
-function _uninstall(): bool
+function pluginUninstallation(): bool
 {
     global $db, $PL, $cache;
 
-    load_pluginlibrary();
+    pluginLibraryLoad();
 
     // Drop DB entries
-    foreach (_db_tables() as $name => $table) {
+    foreach (TABLES_DATA as $name => $table) {
         $db->drop_table($name);
     }
 
-    foreach (_db_columns() as $table => $columns) {
+    foreach (FIELDS_DATA as $table => $columns) {
         foreach ($columns as $name => $definition) {
             !$db->field_exists($name, $table) || $db->drop_column($table, $name);
         }
@@ -231,133 +395,122 @@ function _uninstall(): bool
     return true;
 }
 
-function _db_tables(): array
+function pluginLibraryLoad(bool $check = true): bool
 {
-    return [
-        'ougc_fileprofilefields_files' => [
-            'aid' => 'int UNSIGNED NOT NULL AUTO_INCREMENT',
-            'uid' => 'int UNSIGNED NOT NULL',
-            'muid' => 'int UNSIGNED NOT NULL DEFAULT 0',
-            'fid' => 'int UNSIGNED NOT NULL',
-            'filename' => "varchar(255) NOT NULL DEFAULT ''",
-            'filesize' => "int(10) NOT NULL DEFAULT '0'",
-            'filemime' => "varchar(64) NOT NULL DEFAULT ''",
-            'name' => "varchar(255) NOT NULL DEFAULT ''",
-            'downloads' => "int(10) NOT NULL DEFAULT '0'",
-            'thumbnail' => "varchar(255) NOT NULL DEFAULT ''",
-            'dimensions' => "varchar(11) NOT NULL DEFAULT ''",
-            'md5hash' => "varchar(32) NOT NULL DEFAULT ''",
-            'uploaddate' => "int(10) NOT NULL DEFAULT '0'",
-            'updatedate' => "int(10) NOT NULL DEFAULT '0'",
-            'status' => "tinyint(10) NOT NULL DEFAULT '1'",//all approved by default
-            'primary_key' => 'aid',
-            'unique_key' => ['uidfid' => 'uid,fid']
-        ],
-        'ougc_fileprofilefields_logs' => [
-            'lid' => 'int UNSIGNED NOT NULL AUTO_INCREMENT',
-            'uid' => 'int UNSIGNED NOT NULL',
-            'aid' => 'int UNSIGNED NOT NULL',
-            'ipaddress' => "varbinary(16) NOT NULL DEFAULT ''",
-            'dateline' => "int(10) NOT NULL DEFAULT '0'",
-            'primary_key' => 'lid'
-        ],
-    ];
-}
+    global $PL, $lang;
 
-function _db_columns(): array
-{
-    return [
-        'profilefields' => [
-            'ougc_fileprofilefields_types' => "varchar(50) NOT NULL default '-1'",
-            'ougc_fileprofilefields_maxsize' => "int(15) NOT NULL DEFAULT '0'", // empty for attachment setting
-            'ougc_fileprofilefields_directory' => "varchar(255) NOT NULL DEFAULT ''",
-            'ougc_fileprofilefields_customoutput' => "tinyint(1) NOT NULL DEFAULT '0'",
-            'ougc_fileprofilefields_imageonly' => "tinyint(1) NOT NULL default '0'",
-            'ougc_fileprofilefields_imagemindims' => "varchar(11) NOT NULL DEFAULT ''",
-            'ougc_fileprofilefields_imagemaxdims' => "varchar(11) NOT NULL DEFAULT ''",
-            'ougc_fileprofilefields_thumbnails' => "tinyint(1) NOT NULL default '0'",
-            'ougc_fileprofilefields_thumbnailsdimns' => "varchar(11) NOT NULL DEFAULT ''",
-        ],
-        'attachtypes' => [
-            'ougc_fileprofilefields' => "tinyint(1) NOT NULL default '0'",//empty for all
-        ],
-    ];
-}
+    languageLoad();
 
-function _db_verify_indexes(): bool
-{
-    global $db;
+    if ($file_exists = file_exists(PLUGINLIBRARY)) {
+        global $PL;
 
-    foreach (_db_tables() as $table => $fields) {
-        if (!$db->table_exists($table)) {
-            continue;
-        }
+        $PL or require_once PLUGINLIBRARY;
+    }
 
-        if (isset($fields['unique_key'])) {
-            foreach ($fields['unique_key'] as $k => $v) {
-                if ($db->index_exists($table, $k)) {
-                    continue;
-                }
+    if (!$check) {
+        return false;
+    }
 
-                $db->write_query("ALTER TABLE {$db->table_prefix}{$table} ADD UNIQUE KEY {$k} ({$v})");
-            }
-        }
+    $_info = pluginInformation();
+
+    if (!$file_exists || $PL->version < $_info['pl']['version']) {
+        flash_message(
+            $lang->sprintf($lang->ougc_fileprofilefields_pluginlibrary, $_info['pl']['url'], $_info['pl']['version']),
+            'error'
+        );
+
+        admin_redirect('index.php?module=config-plugins');
     }
 
     return true;
 }
 
-function _db_verify_tables(): bool
+function dbTables(): array
+{
+    $tables_data = [];
+
+    foreach (TABLES_DATA as $tableName => $tableColumns) {
+        foreach ($tableColumns as $fieldName => $fieldData) {
+            if (!isset($fieldData['type'])) {
+                continue;
+            }
+
+            $tables_data[$tableName][$fieldName] = dbBuildFieldDefinition($fieldData);
+        }
+
+        foreach ($tableColumns as $fieldName => $fieldData) {
+            if (isset($fieldData['primary_key'])) {
+                $tables_data[$tableName]['primary_key'] = $fieldName;
+            }
+
+            if ($fieldName === 'unique_key') {
+                $tables_data[$tableName]['unique_key'] = $fieldData;
+            }
+        }
+    }
+
+    return $tables_data;
+}
+
+function dbVerifyTables(): bool
 {
     global $db;
 
     $collation = $db->build_create_table_collation();
 
-    foreach (_db_tables() as $table => $fields) {
-        if ($db->table_exists($table)) {
-            foreach ($fields as $field => $definition) {
-                if ($field == 'primary_key' || $field == 'unique_key') {
+    foreach (dbTables() as $tableName => $tableColumns) {
+        if ($db->table_exists($tableName)) {
+            foreach ($tableColumns as $fieldName => $fieldData) {
+                if ($fieldName == 'primary_key' || $fieldName == 'unique_key') {
                     continue;
                 }
 
-                if ($db->field_exists($field, $table)) {
-                    $db->modify_column($table, "`{$field}`", $definition);
+                if ($db->field_exists($fieldName, $tableName)) {
+                    $db->modify_column($tableName, "`{$fieldName}`", $fieldData);
                 } else {
-                    $db->add_column($table, $field, $definition);
+                    $db->add_column($tableName, $fieldName, $fieldData);
                 }
             }
         } else {
-            $query = "CREATE TABLE IF NOT EXISTS `{$db->table_prefix}{$table}` (";
+            $query_string = "CREATE TABLE IF NOT EXISTS `{$db->table_prefix}{$tableName}` (";
 
-            foreach ($fields as $field => $definition) {
-                if ($field == 'primary_key') {
-                    $query .= "PRIMARY KEY (`{$definition}`)";
-                } elseif ($field != 'unique_key') {
-                    $query .= "`{$field}` {$definition},";
+            foreach ($tableColumns as $fieldName => $fieldData) {
+                if ($fieldName == 'primary_key') {
+                    $query_string .= "PRIMARY KEY (`{$fieldData}`)";
+                } elseif ($fieldName != 'unique_key') {
+                    $query_string .= "`{$fieldName}` {$fieldData},";
                 }
             }
 
-            $query .= ") ENGINE=MyISAM{$collation};";
+            $query_string .= ") ENGINE=MyISAM{$collation};";
 
-            $db->write_query($query);
+            $db->write_query($query_string);
         }
     }
 
-    _db_verify_indexes();
+    dbVerifyIndexes();
 
     return true;
 }
 
-function _db_verify_columns(): bool
+function dbVerifyIndexes(): bool
 {
     global $db;
 
-    foreach (_db_columns() as $table => $columns) {
-        foreach ($columns as $field => $definition) {
-            if ($db->field_exists($field, $table)) {
-                $db->modify_column($table, "`{$field}`", $definition);
-            } else {
-                $db->add_column($table, $field, $definition);
+    foreach (dbTables() as $tableName => $tableColumns) {
+        if (!$db->table_exists($tableName)) {
+            continue;
+        }
+
+        if (isset($tableColumns['unique_key'])) {
+            foreach ($tableColumns['unique_key'] as $key_name => $key_value) {
+                if ($db->index_exists($tableName, $key_name)) {
+                    continue;
+                }
+
+                $db->write_query(
+                    "ALTER TABLE {$db->table_prefix}{$tableName} ADD UNIQUE KEY {$key_name} ({$key_value})"
+                );
             }
         }
     }
@@ -365,7 +518,67 @@ function _db_verify_columns(): bool
     return true;
 }
 
-function _edits_description(): string
+function dbVerifyColumns(array $fieldsData = FIELDS_DATA): bool
+{
+    global $db;
+
+    foreach ($fieldsData as $tableName => $tableColumns) {
+        if (!$db->table_exists($tableName)) {
+            continue;
+        }
+
+        foreach ($tableColumns as $fieldName => $fieldData) {
+            if (!isset($fieldData['type'])) {
+                continue;
+            }
+
+            if ($db->field_exists($fieldName, $tableName)) {
+                $db->modify_column($tableName, "`{$fieldName}`", dbBuildFieldDefinition($fieldData));
+            } else {
+                $db->add_column($tableName, $fieldName, dbBuildFieldDefinition($fieldData));
+            }
+        }
+    }
+
+    return true;
+}
+
+function dbBuildFieldDefinition(array $fieldData): string
+{
+    $field_definition = '';
+
+    $field_definition .= $fieldData['type'];
+
+    if (isset($fieldData['size'])) {
+        $field_definition .= "({$fieldData['size']})";
+    }
+
+    if (isset($fieldData['unsigned'])) {
+        if ($fieldData['unsigned'] === true) {
+            $field_definition .= ' UNSIGNED';
+        } else {
+            $field_definition .= ' SIGNED';
+        }
+    }
+
+    if (!isset($fieldData['null'])) {
+        $field_definition .= ' NOT';
+    }
+
+    $field_definition .= ' NULL';
+
+    if (isset($fieldData['auto_increment'])) {
+        $field_definition .= ' AUTO_INCREMENT';
+    }
+
+    if (isset($fieldData['default'])) {
+        $field_definition .= " DEFAULT '{$fieldData['default']}'";
+    }
+
+    return $field_definition;
+}
+
+function coreEditsDescription(): string
 {
     global $cache;
 
@@ -373,18 +586,18 @@ function _edits_description(): string
 
     $edits_desc = '';
 
-    if (!_is_installed() || empty($plugins['active']['ougc_fileprofilefields'])) {
+    if (!pluginIsInstalled() || empty($plugins['active']['ougc_fileprofilefields'])) {
         return $edits_desc;
     }
 
     global $PL, $mybb, $page, $lang;
 
-    load_pluginlibrary(false);
+    pluginLibraryLoad(false);
 
     $_edits_apply = $_edits_revert = false;
 
     // Check edits to core files.
-    if (_edits_apply() !== true) {
+    if (coreEditsApply() !== true) {
         $_edits_apply = $lang->sprintf(
             $lang->ougc_fileprofilefields_edits_apply,
             $PL->url_append('index.php', [
@@ -400,7 +613,7 @@ function _edits_description(): string
     }
 
     // Check edits to core files.
-    if (_edits_revert() !== true) {
+    if (coreEditsRevert() !== true) {
         $_edits_revert = $lang->sprintf(
             $lang->ougc_fileprofilefields_edits_revert,
             $PL->url_append('index.php', [
@@ -418,11 +631,11 @@ function _edits_description(): string
     return $edits_desc;
 }
 
-function _edits_apply(bool $apply = false): bool
+function coreEditsApply(bool $apply = false): bool
 {
     global $PL;
 
-    load_pluginlibrary(false);
+    pluginLibraryLoad(false);
 
     if ($PL->edit_core('ougc_plugins_customfields_start', 'member.php', [
             'search' => ['if(isset($userfields[$field]))'],
@@ -470,11 +683,11 @@ function _edits_apply(bool $apply = false): bool
     return true;
 }
 
-function _edits_revert(bool $apply = false): bool
+function coreEditsRevert(bool $apply = false): bool
 {
     global $PL;
 
-    load_pluginlibrary(false);
+    pluginLibraryLoad(false);
 
     return $PL->edit_core('ougc_plugins_customfields_start', 'member.php', [], $apply) === true &&
         $PL->edit_core('ougc_plugins_customfields_start', 'inc/functions_post.php', [], $apply) === true;

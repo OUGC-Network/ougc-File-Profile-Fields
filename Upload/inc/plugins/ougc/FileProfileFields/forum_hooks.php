@@ -31,7 +31,6 @@ declare(strict_types=1);
 namespace ougc\FileProfileFields\Hooks\Forum;
 
 use MyBB;
-
 use UserDataHandler;
 
 use function ougc\FileProfileFields\Core\buildFileFields;
@@ -39,19 +38,22 @@ use function ougc\FileProfileFields\Core\control_object;
 use function ougc\FileProfileFields\Core\getProfileFieldsCache;
 use function ougc\FileProfileFields\Core\getSetting;
 use function ougc\FileProfileFields\Core\urlHandlerBuild;
-use function ougc\FileProfileFields\Core\delete_file;
-use function ougc\FileProfileFields\Core\get_userfields;
-use function ougc\FileProfileFields\Core\load_language;
-use function ougc\FileProfileFields\Core\queryFilesMultiple;
-use function ougc\FileProfileFields\Core\remove_files;
+use function ougc\FileProfileFields\Core\fileDelete;
+use function ougc\FileProfileFields\Core\userGetFields;
+use function ougc\FileProfileFields\Core\languageLoad;
+use function ougc\FileProfileFields\Core\fileGetMultiple;
+use function ougc\FileProfileFields\Core\filesRemove;
 use function ougc\FileProfileFields\Core\renderUserFile;
-use function ougc\FileProfileFields\Core\reset_file;
+use function ougc\FileProfileFields\Core\fileReset;
 use function ougc\FileProfileFields\Core\urlHandlerSet;
-use function ougc\FileProfileFields\Core\store_file;
-use function ougc\FileProfileFields\Core\upload_file;
+use function ougc\FileProfileFields\Core\fileStore;
+use function ougc\FileProfileFields\Core\fileUpload;
 use function ougc\FileProfileFields\Core\getTemplate;
 
 use const TIME_NOW;
+use const ougc\FileProfileFields\Core\FILE_STATUS_APPROVED;
+use const ougc\FileProfileFields\Core\FILE_STATUS_ON_QUEUE;
+use const ougc\FileProfileFields\Core\FILE_STATUS_UNAPPROVED;
 
 function global_start09(): bool
 {
@@ -122,7 +124,7 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
 
         $user_fields = &$dh->data['user_fields'];
 
-        $original_values = get_userfields($userID);
+        $original_values = userGetFields($userID);
 
         // Then loop through the profile fields.
         foreach ($pfcache as $profileFieldData) {
@@ -175,7 +177,7 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
                 THIS_SCRIPT != 'modcp.php'
             ) {
                 if (isset($remove_aids[$profileFieldData['fid']])) {
-                    load_language();
+                    languageLoad();
 
                     $dh->set_error(
                         $lang->sprintf(
@@ -190,7 +192,7 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
             }
 
             if ($process_file) {
-                $ougcFileProfileFieldsObjects[$profileFieldData['fid']] = upload_file($userID, $profileFieldData);
+                $ougcFileProfileFieldsObjects[$profileFieldData['fid']] = fileUpload($userID, $profileFieldData);
 
                 if (!empty($ougcFileProfileFieldsObjects[$profileFieldData['fid']]['error'])) {
                     $dh->set_error($ougcFileProfileFieldsObjects[$profileFieldData['fid']]['error']);
@@ -203,9 +205,9 @@ function datahandler_user_validate(UserDataHandler &$dh): UserDataHandler
 
             if (!$dh->errors && isset($remove_aids[$profileFieldData['fid']])) {
                 if ($process_file) {
-                    reset_file($userID, $profileFieldData);
+                    fileReset($userID, $profileFieldData);
                 } else {
-                    delete_file($userID, $profileFieldData);
+                    fileDelete($userID, $profileFieldData);
                 }
             }
         }
@@ -223,6 +225,8 @@ function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
     }
 
     global $db, $plugins, $mybb;
+
+    $currentUserID = (int)$mybb->user['uid'];
 
     $user = &$dh->data;
 
@@ -247,7 +251,7 @@ function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
         ];
 
         if (is_member($mybb->settings['ougc_fileprofilefields_groups_moderate'])) {
-            $insert_data['status'] = 0;
+            $insert_data['status'] = FILE_STATUS_ON_QUEUE;
         }
 
         if (
@@ -257,9 +261,9 @@ function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
                 defined('IN_ADMINCP')
             )
         ) {
-            $insert_data['muid'] = $mybb->user['uid'];
+            $insert_data['muid'] = $currentUserID;
 
-            $insert_data['status'] = 1;
+            $insert_data['status'] = FILE_STATUS_APPROVED;
         }
 
         $args = [
@@ -269,10 +273,10 @@ function datahandler_user_update(UserDataHandler &$dh): UserDataHandler
 
         $args = $plugins->run_hooks('ougc_fileprofilefields_user_update', $args);
 
-        if ($aid = store_file($insert_data)) {
+        if ($aid = fileStore($insert_data)) {
             $user_fields["fid{$fid}"] = $db->escape_string($aid);
 
-            remove_files(
+            filesRemove(
                 $user['uid'],
                 $fid,
                 $file['uploadpath'],
@@ -310,7 +314,7 @@ function datahandler_user_delete_start(UserDataHandler &$dh): UserDataHandler
     $query = $db->simple_select('ougc_fileprofilefields_files', 'uid, fid', "uid IN ('{$delete_uids}')");
 
     while ($fileData = $db->fetch_array($query)) {
-        delete_file((int)$fileData['uid'], $profilefields_cache[$fileData['fid']] ?? []);
+        fileDelete((int)$fileData['uid'], $profilefields_cache[$fileData['fid']] ?? []);
     }
 
     $db->delete_query('ougc_fileprofilefields_files', "uid IN ('{$delete_uids}')");
@@ -461,9 +465,9 @@ function ougc_file_profile_fields_moderator_control_panel(array &$hookArguments)
 
 function modcp_start()
 {
-    global $mybb, $modcp_nav, $templates, $lang, $plugins, $usercpnav, $headerinclude, $header, $theme, $footer, $db, $gobutton, $cache, $parser;
+    global $mybb, $modcp_nav, $lang, $usercpnav, $headerinclude, $header, $theme, $footer, $db, $gobutton, $cache, $parser;
 
-    load_language();
+    languageLoad();
 
     $permission = is_member($mybb->settings['ougc_fileprofilefields_groups_moderators']);
 
@@ -658,7 +662,7 @@ function modcp_start()
         if ($mybb->get_input('do') == 'files' && $mybb->get_input('unapprove')) {
             $db->update_query(
                 'ougc_fileprofilefields_files',
-                ['status' => -1, 'muid' => (int)$mybb->user['uid']],
+                ['status' => FILE_STATUS_UNAPPROVED, 'muid' => (int)$mybb->user['uid']],
                 "aid IN ('{$filesIDs}')"
             );
 
@@ -679,7 +683,7 @@ function modcp_start()
             $query = $db->simple_select('ougc_fileprofilefields_files', 'uid, fid', "aid IN ('{$filesIDs}')");
 
             while ($fileData = $db->fetch_array($query)) {
-                delete_file((int)$fileData['uid'], $profilefields_cache[$fileData['fid']] ?? []);
+                fileDelete((int)$fileData['uid'], $profilefields_cache[$fileData['fid']] ?? []);
             }
 
             redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_unapproved);
@@ -866,7 +870,7 @@ function modcp_start()
             ) : '';
 
             switch ($file['status']) {
-                case -1:
+                case FILE_STATUS_UNAPPROVED:
                     $status_class = 'unapproved';
                     $status = $lang->ougc_fileprofilefields_modcp_files_status_unapproved;
                     break;
@@ -1048,7 +1052,7 @@ function memberlist_user(array &$userData): array
     if (!empty($fileIDs)) {
         $fileIDs = implode("','", $fileIDs);
 
-        $fileProfileFieldsCachedUsersData[$userID] = queryFilesMultiple(
+        $fileProfileFieldsCachedUsersData[$userID] = fileGetMultiple(
             ["uid='{$userID}'", "aid IN ('{$fileIDs}')"]
         );
     }

@@ -33,19 +33,20 @@ namespace ougc\FileProfileFields\Hooks\Admin;
 use MyBB;
 
 use function ougc\FileProfileFields\Admin\_db_columns;
-use function ougc\FileProfileFields\Admin\_edits_apply;
-use function ougc\FileProfileFields\Admin\_edits_revert;
-use function ougc\FileProfileFields\Core\get_userfields;
+use function ougc\FileProfileFields\Admin\coreEditsApply;
+use function ougc\FileProfileFields\Admin\coreEditsRevert;
+use function ougc\FileProfileFields\Core\userGetFields;
 use function ougc\FileProfileFields\Core\getProfileFieldsCache;
 use function ougc\FileProfileFields\Core\getSetting;
-use function ougc\FileProfileFields\Core\load_language;
-use function ougc\FileProfileFields\Core\query_file;
+use function ougc\FileProfileFields\Core\languageLoad;
+use function ougc\FileProfileFields\Core\fileGet;
 use function ougc\FileProfileFields\Core\getTemplate;
-use function ougc\FileProfileFields\Core\queryFilesMultiple;
+use function ougc\FileProfileFields\Core\fileGetMultiple;
 use function ougc\FileProfileFields\Core\urlHandlerBuild;
 use function ougc\FileProfileFields\Core\urlHandlerSet;
 
 use const MYBB_ROOT;
+use const ougc\FileProfileFields\Core\FILE_STATUS_UNAPPROVED;
 
 function admin_config_plugins_begin(): bool
 {
@@ -58,7 +59,7 @@ function admin_config_plugins_begin(): bool
     verify_post_check($mybb->get_input('my_post_key'));
 
     if ($mybb->get_input('ougc_fileprofilefields') == 'apply') {
-        if (_edits_apply(true) === true) {
+        if (coreEditsApply(true) === true) {
             flash_message($lang->ougc_fileprofilefields_edits_apply_success, 'success');
         } else {
             flash_message($lang->ougc_fileprofilefields_edits_apply_error, 'error');
@@ -68,7 +69,7 @@ function admin_config_plugins_begin(): bool
     }
 
     if ($mybb->get_input('ougc_fileprofilefields') == 'revert') {
-        if (_edits_revert(true) === true) {
+        if (coreEditsRevert(true) === true) {
             flash_message($lang->ougc_fileprofilefields_edits_revert_success, 'success');
         } else {
             flash_message($lang->ougc_fileprofilefields_edits_revert_error, 'error');
@@ -144,9 +145,7 @@ function admin_formcontainer_output_row(array &$args): array
     }
 
     if (!empty($args['options']['id']) && !empty($profile_fields_cache[$args['options']['id']])) {
-        global $templates;
-
-        load_language();
+        languageLoad();
 
         $pfcache = getProfileFieldsCache();
 
@@ -188,14 +187,14 @@ function admin_formcontainer_output_row(array &$args): array
             static $user_fields = null;
 
             if ($user_fields === null) {
-                $user_fields = get_userfields($mybb->get_input('uid', MyBB::INPUT_INT));
+                $user_fields = userGetFields($mybb->get_input('uid', MyBB::INPUT_INT));
             }
 
             $aid = (int)($user_fields[$field] ?? 0);
 
             $style = $accepted_formats = $update = $remove = '';
 
-            if ($file = query_file(
+            if ($file = fileGet(
                 ["aid='{$aid}'"],
                 ['uid', 'fid', 'filename', 'filesize', 'downloads', 'md5hash', 'uploaddate', 'updatedate'],
                 ['limit' => 1]
@@ -207,7 +206,7 @@ function admin_formcontainer_output_row(array &$args): array
 
                 $style = 'none';
 
-                load_language();
+                languageLoad();
 
                 $ext = get_extension(my_strtolower($file['filename']));
 
@@ -234,7 +233,7 @@ function admin_formcontainer_output_row(array &$args): array
                 if ($file['status'] !== 1) {
                     $statusDescription = $lang->ougc_fileprofilefields_status_notification_onqueue;
 
-                    if ($file['status'] === -1) {
+                    if ($file['status'] === FILE_STATUS_UNAPPROVED) {
                         $statusDescription = $lang->ougc_fileprofilefields_status_notification_unapproved;
                     }
 
@@ -334,7 +333,7 @@ function admin_formcontainer_output_row(array &$args): array
     }
 
     if (!empty($lang->avatar_file) && $args['title'] == $lang->avatar_file) {
-        load_language();
+        languageLoad();
 
         $form_container->output_row(
             $lang->ougc_fileprofilefields_attachments_fields,
@@ -348,7 +347,7 @@ function admin_formcontainer_output_row(array &$args): array
     }
 
     if (!empty($lang->field_type) && $args['title'] == $lang->field_type . ' <em>*</em>') {
-        load_language();
+        languageLoad();
 
         $select_list['file'] = $lang->ougc_fileprofilefields_profilefields_type;
 
@@ -361,7 +360,7 @@ function admin_formcontainer_output_row(array &$args): array
     }
 
     if (!empty($lang->show_on_registration) && $args['title'] == $lang->show_on_registration . ' <em>*</em>') {
-        load_language();
+        languageLoad();
 
         $attachtypes = $mybb->cache->read('attachtypes');
 
@@ -648,7 +647,7 @@ function admin_tools_system_health_output_chmod_list(): bool
     global $mybb, $lang;
     global $table, $errors;
 
-    load_language();
+    languageLoad();
 
     foreach (getProfileFieldsCache() as $profileFieldData) {
         if (strpos($profileFieldData['type'], 'file') === false) {
@@ -696,15 +695,13 @@ function admin_tools_do_recount_rebuild(): bool
 
     $queryLimit = $mybb->get_input('ougcFileProfileFieldsUsersFieldsTableLimit', MyBB::INPUT_INT);
 
-    if ($queryLimit <= 0) {
+    if ($queryLimit <= 1) {
         $mybb->input['ougcFileProfileFieldsUsersFieldsTableLimit'] = 50;
     }
 
     global $db, $mybb, $lang;
 
-    $fileObjects = queryFilesMultiple([], 'COUNT(aid) as totalFiles', ['limit' => 1]);
-
-    $totalFiles = $fileObjects[0]['totalFiles'] ?? 0;
+    $totalFiles = (int)(fileGetMultiple([], ['COUNT(aid) as totalFiles'], ['limit' => 1])['totalFiles'] ?? 0);
 
     $page = $mybb->get_input('page', MyBB::INPUT_INT);
 
@@ -713,9 +710,9 @@ function admin_tools_do_recount_rebuild(): bool
     $endPage = $startPage + $queryLimit;
 
     foreach (
-        queryFilesMultiple(
+        fileGetMultiple(
             [],
-            'aid, uid, fid',
+            ['uid', 'fid'],
             ['limit' => $queryLimit, 'limit_start' => $startPage]
         ) as $fileData
     ) {
@@ -744,7 +741,7 @@ function admin_tools_recount_rebuild_output_list(): bool
     global $lang;
     global $form, $form_container;
 
-    load_language();
+    languageLoad();
 
     $form_container->output_cell(
         "<label>{$lang->ougc_fileprofilefields_admin_rebuild_user_fields_data}</label><div class=\"description\">{$lang->ougc_fileprofilefields_admin_rebuild_user_fields_data_desc}</div>"

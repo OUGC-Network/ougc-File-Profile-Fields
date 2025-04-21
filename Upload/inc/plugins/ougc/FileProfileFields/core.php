@@ -35,7 +35,7 @@ use MyBB;
 use OUGC_ProfiecatsCache;
 use ReflectionProperty;
 
-use function ougc\FileProfileFields\Admin\_info;
+use function ougc\FileProfileFields\Admin\pluginInformation;
 
 use const IMAGETYPE_BMP;
 use const IMAGETYPE_GIF;
@@ -43,7 +43,6 @@ use const IMAGETYPE_JPEG;
 use const IMAGETYPE_PNG;
 use const IMAGETYPE_WEBP;
 use const MYBB_ROOT;
-
 use const TIME_NOW;
 
 const FILE_STATUS_UNAPPROVED = -1;
@@ -56,7 +55,7 @@ const TEMPLATE_SECTION_MEMBER_LIST = 'memberList';
 
 const URL = 'modcp.php';
 
-function load_language(): bool
+function languageLoad(): bool
 {
     global $lang;
 
@@ -66,36 +65,6 @@ function load_language(): bool
         if (defined('IN_ADMINCP')) {
             $lang->load('ougc_fileprofilefields', true);
         }
-    }
-
-    return true;
-}
-
-function load_pluginlibrary(bool $check = true): bool
-{
-    global $PL, $lang;
-
-    load_language();
-
-    if ($file_exists = file_exists(PLUGINLIBRARY)) {
-        global $PL;
-
-        $PL or require_once PLUGINLIBRARY;
-    }
-
-    if (!$check) {
-        return false;
-    }
-
-    $_info = _info();
-
-    if (!$file_exists || $PL->version < $_info['pl']['version']) {
-        flash_message(
-            $lang->sprintf($lang->ougc_fileprofilefields_pluginlibrary, $_info['pl']['url'], $_info['pl']['version']),
-            'error'
-        );
-
-        admin_redirect('index.php?module=config-plugins');
     }
 
     return true;
@@ -202,26 +171,26 @@ function urlHandlerBuild(array $urlAppend = [], bool $fetchImportUrl = false, bo
     return $PL->url_append(urlHandlerGet(), $urlAppend, '&amp;', $encode);
 }
 
-function store_file(array $insert_data): int
+function fileStore(array $fileData): int
 {
     global $db, $plugins;
 
     $clean_data = [];
 
     $args = [
-        'insert_data' => &$insert_data,
+        'insert_data' => &$fileData,
         'clean_data' => &$clean_data
     ];
 
     foreach (['uid', 'fid', 'muid', 'filesize', 'downloads', 'uploaddate', 'updatedate', 'status'] as $key) {
-        if (isset($insert_data[$key])) {
-            $clean_data[$key] = (int)$insert_data[$key];
+        if (isset($fileData[$key])) {
+            $clean_data[$key] = (int)$fileData[$key];
         }
     }
 
     foreach (['filename', 'filemime', 'name', 'thumbnail', 'dimensions', 'md5hash'] as $key) {
-        if (isset($insert_data[$key])) {
-            $clean_data[$key] = $db->escape_string($insert_data[$key]);
+        if (isset($fileData[$key])) {
+            $clean_data[$key] = $db->escape_string($fileData[$key]);
         }
     }
 
@@ -250,7 +219,7 @@ function store_file(array $insert_data): int
     return $aid;
 }
 
-function query_file(
+function fileGet(
     array $whereClauses,
     array $queryFields = [
         'uid',
@@ -288,58 +257,72 @@ function query_file(
     return [];
 }
 
-function queryFilesMultiple(
+function fileGetMultiple(
     array $whereClauses,
-    string $queryFields = 'aid, uid, muid, fid, filename, filesize, filemime, name, downloads, thumbnail, dimensions, md5hash, uploaddate, updatedate, status',
+    array $queryFields = [
+        'uid',
+        'muid',
+        'fid',
+        'filename',
+        'filesize',
+        'filemime',
+        'name',
+        'downloads',
+        'thumbnail',
+        'dimensions',
+        'md5hash',
+        'uploaddate',
+        'updatedate',
+        'status'
+    ],
     array $queryOptions = []
 ): array {
     global $db;
 
+    $queryFields[] = 'aid';
+
     $dbQuery = $db->simple_select(
         'ougc_fileprofilefields_files',
-        $queryFields,
+        implode(',', $queryFields),
         implode(' AND ', $whereClauses),
         $queryOptions
     );
 
+    if (isset($queryOptions['limit']) && $queryOptions['limit'] === 1) {
+        return (array)$db->fetch_array($dbQuery);
+    }
+
     $filesObjects = [];
 
-    if ($db->num_rows($dbQuery)) {
-        while ($fileData = $db->fetch_array($dbQuery)) {
-            if (isset($fileData['aid'])) {
-                $filesObjects[(int)$fileData['aid']] = $fileData;
-                //unset($filesObjects[(int)$fileData['aid']]['aid']);
-            } else {
-                $filesObjects[] = $fileData;
-            }
-        }
+    while ($fileData = $db->fetch_array($dbQuery)) {
+        $filesObjects[(int)$fileData['aid']] = $fileData;
     }
 
     return $filesObjects;
 }
 
-function upload_file(int $uid, array $profilefield): array
+function fileUpload(int $userID, array $profileFieldData): array
 {
     global $db, $mybb, $lang, $plugins;
 
     $ret = $ret_data = $valid_exts = $valid_mimes = $allowed_mime_types = [];
 
     $args = [
-        'uid' => &$uid,
-        'profilefield' => &$profilefield,
+        'uid' => &$userID,
+        'profilefield' => &$profileFieldData,
         'ret' => &$ret,
         'ret_data' => &$ret_data
     ];
 
     $args = $plugins->run_hooks('ougc_fileprofilefields_upload_file_start', $args);
 
-    $uid = (int)$uid;
+    $userID = (int)$userID;
 
-    $profilefield['fid'] = (int)$profilefield['fid'];
+    $profileFieldData['fid'] = (int)$profileFieldData['fid'];
 
-    load_language();
+    languageLoad();
 
-    $fieldIdentifier = "fid{$profilefield['fid']}";
+    $fieldIdentifier = "fid{$profileFieldData['fid']}";
 
     if (!is_uploaded_file($_FILES['profile_fields']['tmp_name'][$fieldIdentifier])) {
         $ret['error'] = $lang->ougc_fileprofilefields_errors_upload_failed_upload_size;
@@ -359,13 +342,13 @@ function upload_file(int $uid, array $profilefield): array
 
     $attachtypes = $mybb->cache->read('attachtypes');
 
-    $userData = get_user($uid);
+    $userData = get_user($userID);
 
     foreach ($attachtypes as $ext => $attachtype) {
         if (
             $attachtype['ougc_fileprofilefields'] &&
             is_member(
-                (string)$profilefield['ougc_fileprofilefields_types'],
+                (string)$profileFieldData['ougc_fileprofilefields_types'],
                 ['usergroup' => (int)$attachtype['atid'], 'additionalgroups' => '']
             ) &&
             ($attachtype['groups'] == -1 || is_member($attachtype['groups'], $userData))
@@ -374,7 +357,7 @@ function upload_file(int $uid, array $profilefield): array
 
             $valid_mimes[] = $attachtype['mimetype'];
             // TODO: Max file size should be separated from attach setting
-            $allowed_mime_types[$attachtype['mimetype']] = (int)$profilefield['ougc_fileprofilefields_maxsize'] ?: (int)$attachtype['maxsize'];
+            $allowed_mime_types[$attachtype['mimetype']] = (int)$profileFieldData['ougc_fileprofilefields_maxsize'] ?: (int)$attachtype['maxsize'];
         }
     }
 
@@ -383,14 +366,14 @@ function upload_file(int $uid, array $profilefield): array
     if (!preg_match("#^({$valid_extensions})$#i", $file_ext)) {
         $ret['error'] = $lang->sprintf(
             $lang->ougc_fileprofilefields_errors_invalid_type,
-            htmlspecialchars_uni($profilefield['name']),
+            htmlspecialchars_uni($profileFieldData['name']),
             implode(', ', $valid_exts)
         );
 
         return $ret;
     }
 
-    $uploadpath = MYBB_ROOT . $profilefield['ougc_fileprofilefields_directory'];
+    $uploadpath = MYBB_ROOT . $profileFieldData['ougc_fileprofilefields_directory'];
 
     $maxfilenamelength = 255;
 
@@ -408,7 +391,7 @@ function upload_file(int $uid, array $profilefield): array
 
     $random_md5 = md5(random_str());
 
-    $fileName = "profilefieldfile_{$profilefield['fid']}_{$uid}_{$time_now}_{$random_md5}.attach";
+    $fileName = "profilefieldfile_{$profileFieldData['fid']}_{$userID}_{$time_now}_{$random_md5}.attach";
 
     require_once MYBB_ROOT . 'inc/functions_upload.php';
 
@@ -432,7 +415,7 @@ function upload_file(int $uid, array $profilefield): array
     if ($uploaded_mime && !in_array($uploaded_mime, $valid_mimes)) {
         $ret['error'] = $lang->sprintf(
             $lang->ougc_fileprofilefields_errors_invalid_type,
-            htmlspecialchars_uni($profilefield['name']),
+            htmlspecialchars_uni($profileFieldData['name']),
             implode(', ', $valid_exts)
         );
 
@@ -445,7 +428,7 @@ function upload_file(int $uid, array $profilefield): array
 
     $ret_data['name'] = $fileName;
 
-    if ($profilefield['ougc_fileprofilefields_imageonly']) {
+    if ($profileFieldData['ougc_fileprofilefields_imageonly']) {
         $img_dimensions = @getimagesize("{$uploadpath}/{$fileName}");
 
         if (!is_array($img_dimensions)) {
@@ -456,15 +439,15 @@ function upload_file(int $uid, array $profilefield): array
             return $ret;
         }
 
-        if (!empty($profilefield['ougc_fileprofilefields_imagemindims'])) {
-            $minimum_dims = explode('|', $profilefield['ougc_fileprofilefields_imagemindims']);
+        if (!empty($profileFieldData['ougc_fileprofilefields_imagemindims'])) {
+            $minimum_dims = explode('|', $profileFieldData['ougc_fileprofilefields_imagemindims']);
 
             if (($minimum_dims[0] && $img_dimensions[0] < $minimum_dims[0]) || ($minimum_dims[1] && $img_dimensions[1] < $minimum_dims[1])) {
                 delete_uploaded_file("{$uploadpath}/{$fileName}");
 
                 $ret['error'] = $lang->sprintf(
                     $lang->ougc_fileprofilefields_errors_invalid_mindims,
-                    htmlspecialchars_uni($profilefield['name']),
+                    htmlspecialchars_uni($profileFieldData['name']),
                     $minimum_dims[0],
                     $minimum_dims[1]
                 );
@@ -473,8 +456,8 @@ function upload_file(int $uid, array $profilefield): array
             }
         }
 
-        if (!empty($profilefield['ougc_fileprofilefields_imagemaxdims'])) {
-            $maximum_dims = explode('|', $profilefield['ougc_fileprofilefields_imagemaxdims']);
+        if (!empty($profileFieldData['ougc_fileprofilefields_imagemaxdims'])) {
+            $maximum_dims = explode('|', $profileFieldData['ougc_fileprofilefields_imagemaxdims']);
 
             if (!isset($maximum_dims[0])) {
                 $maximum_dims[0] = 0;
@@ -501,7 +484,7 @@ function upload_file(int $uid, array $profilefield): array
 
                         $ret['error'] = $lang->sprintf(
                             $lang->ougc_fileprofilefields_errors_invalid_maxdims,
-                            htmlspecialchars_uni($profilefield['name']),
+                            htmlspecialchars_uni($profileFieldData['name']),
                             $maximum_dims[0],
                             $maximum_dims[1]
                         );
@@ -525,7 +508,7 @@ function upload_file(int $uid, array $profilefield): array
 
                     $ret['error'] = $lang->sprintf(
                         $lang->ougc_fileprofilefields_errors_invalid_maxdims,
-                        htmlspecialchars_uni($profilefield['name']),
+                        htmlspecialchars_uni($profileFieldData['name']),
                         $maximum_dims[0],
                         $maximum_dims[1]
                     );
@@ -582,11 +565,11 @@ function upload_file(int $uid, array $profilefield): array
 
         require_once MYBB_ROOT . 'inc/functions_image.php';
 
-        if (!empty($profilefield['ougc_fileprofilefields_thumbnails']) && in_array(
+        if (!empty($profileFieldData['ougc_fileprofilefields_thumbnails']) && in_array(
                 $img_type,
                 [IMAGETYPE_GIF, IMAGETYPE_JPEG, IMAGETYPE_PNG]
             )) {
-            $dims = explode('|', $profilefield['ougc_fileprofilefields_thumbnailsdimns']);
+            $dims = explode('|', $profileFieldData['ougc_fileprofilefields_thumbnailsdimns']);
 
             $thumbnail = generate_thumbnail(
                 "{$uploadpath}/{$fileName}",
@@ -625,7 +608,7 @@ function upload_file(int $uid, array $profilefield): array
 
         $ret['error'] = $lang->sprintf(
             $lang->ougc_fileprofilefields_errors_upload_size,
-            htmlspecialchars_uni($profilefield['name']),
+            htmlspecialchars_uni($profileFieldData['name']),
             get_friendly_size($allowed_mime_types[$file['type']]),
             my_strtoupper($file_ext)
         );
@@ -640,47 +623,50 @@ function upload_file(int $uid, array $profilefield): array
     return $ret_data;
 }
 
-function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = []): bool
+function filesRemove(int $userID, int $fieldID, string $uploadsPath, array $excludedFiles = []): bool
 {
     global $plugins;
 
     $profileFieldData = [];
 
     foreach (getProfileFieldsCache() as $profileField) {
-        if ((int)$profileField['fid'] === $fid) {
+        if ((int)$profileField['fid'] === $fieldID) {
             $profileFieldData = $profileField;
 
             break;
         }
     }
 
-    $fileName = "profilefieldfile_{$fid}_{$uid}";
+    $fileName = "profilefieldfile_{$fieldID}_{$userID}";
 
     $hook_arguments = [
-        'uid' => &$uid,
-        'fid' => &$fid,
-        'uploadpath' => &$uploadpath,
-        'exclude' => &$exclude,
+        'uid' => &$userID,
+        'fid' => &$fieldID,
+        'uploadpath' => &$uploadsPath,
+        'exclude' => &$excludedFiles,
         'profileFieldData' => &$profileFieldData,
         'filename' => &$fileName,
     ];
 
     $hook_arguments = $plugins->run_hooks('ougc_fileprofilefields_remove_files_start', $hook_arguments);
 
-    $dir = opendir($uploadpath);
+    $dir = opendir($uploadsPath);
 
     if ($dir) {
-        is_array($exclude) || $exclude = [$exclude];
+        is_array($excludedFiles) || $excludedFiles = [$excludedFiles];
 
         while ($file = @readdir($dir)) {
             if ($file == '.' or $file == '..') {
                 continue;
             }
 
-            if (preg_match("#{$fileName}#", $file) && is_file("{$uploadpath}/{$file}") && !in_array($file, $exclude)) {
+            if (preg_match("#{$fileName}#", $file) && is_file("{$uploadsPath}/{$file}") && !in_array(
+                    $file,
+                    $excludedFiles
+                )) {
                 require_once MYBB_ROOT . 'inc/functions_upload.php';
 
-                delete_uploaded_file("{$uploadpath}/{$file}");
+                delete_uploaded_file("{$uploadsPath}/{$file}");
             }
         }
 
@@ -692,63 +678,63 @@ function remove_files(int $uid, int $fid, string $uploadpath, array $exclude = [
     return true;
 }
 
-function delete_file(int $uid, array $profilefield): bool
+function fileDelete(int $userID, array $profileFieldData): bool
 {
     global $db, $mybb;
 
-    $uid = (int)$uid;
+    $userID = (int)$userID;
 
-    $fid = (int)$profilefield['fid'];
+    $fid = (int)$profileFieldData['fid'];
 
-    $query = $db->simple_select('ougc_fileprofilefields_files', '*', "uid='{$uid}' AND fid='{$fid}'");
+    $query = $db->simple_select('ougc_fileprofilefields_files', '*', "uid='{$userID}' AND fid='{$fid}'");
 
     while ($file = $db->fetch_array($query)) {
-        remove_files($uid, $fid, MYBB_ROOT . $profilefield['ougc_fileprofilefields_directory']);
+        filesRemove($userID, $fid, MYBB_ROOT . $profileFieldData['ougc_fileprofilefields_directory']);
     }
 
-    $db->delete_query('ougc_fileprofilefields_files', "uid='{$uid}' AND fid='{$fid}'");
+    $db->delete_query('ougc_fileprofilefields_files', "uid='{$userID}' AND fid='{$fid}'");
 
-    $db->update_query('userfields', ["fid{$fid}" => ''], "ufid='{$uid}'");
+    $db->update_query('userfields', ["fid{$fid}" => ''], "ufid='{$userID}'");
 
     return true;
 }
 
-function reset_file(int $uid, array $profilefield): bool
+function fileReset(int $userID, array $profileFieldData): bool
 {
     global $db, $mybb;
 
-    $uid = (int)$uid;
+    $userID = (int)$userID;
 
-    $fid = (int)$profilefield['fid'];
+    $fid = (int)$profileFieldData['fid'];
 
     $db->update_query('ougc_fileprofilefields_files', [
         'downloads' => 0,
         'uploaddate' => TIME_NOW,
         'updatedate' => TIME_NOW
-    ], "uid='{$uid}' AND fid='{$fid}'");
+    ], "uid='{$userID}' AND fid='{$fid}'");
 
     return true;
 }
 
-function get_userfields(int $uid): array
+function userGetFields(int $userID): array
 {
     static $user_cache = [];
 
-    $uid = (int)$uid;
+    $userID = (int)$userID;
 
-    if (!isset($user_cache[$uid])) {
+    if (!isset($user_cache[$userID])) {
         global $db;
 
-        $query = $db->simple_select('userfields', '*', "ufid='{$uid}'");
+        $query = $db->simple_select('userfields', '*', "ufid='{$userID}'");
 
         if ($db->num_rows($query)) {
-            $user_cache[$uid] = (array)$db->fetch_array($query);
+            $user_cache[$userID] = (array)$db->fetch_array($query);
         } else {
-            $user_cache[$uid] = [];
+            $user_cache[$userID] = [];
         }
     }
 
-    return $user_cache[$uid];
+    return $user_cache[$userID];
 }
 
 function getProfileFieldsCache(): array
@@ -805,7 +791,7 @@ function renderUserFile(
 
     $userID = (int)$fileData['uid'];
 
-    load_language();
+    languageLoad();
 
     $fileExtension = get_extension(my_strtolower($fileData['filename']));
 
@@ -907,7 +893,7 @@ function buildFileFields(
         return false;
     }
 
-    global $mybb, $user_fields, $customfield, $maxlength, $code, $templates, $lang, $ougc_fileprofilefields, $profilefields;
+    global $mybb, $user_fields, $customfield, $maxlength, $code, $lang, $ougc_fileprofilefields, $profilefields;
     global $ougcProfileFieldsCategoriesCurrentID, $ougcProfileFieldsCategoriesProfileContents;
 
     $categoryID = $ougcProfileFieldsCategoriesCurrentID ?? 0;
@@ -967,7 +953,7 @@ function buildFileFields(
         $whereClauses[] = "status='1'";
     }
 
-    if ($fileData = query_file(
+    if ($fileData = fileGet(
         $whereClauses,
         [
             'filename',
@@ -997,7 +983,7 @@ function buildFileFields(
         ) {
             $styleCode = 'display: none;';
 
-            load_language();
+            languageLoad();
 
             $fileExtension = get_extension(my_strtolower($fileData['filename']));
 
@@ -1022,7 +1008,7 @@ function buildFileFields(
             if ($fileStatus !== 1) {
                 $statusDescription = $lang->ougc_fileprofilefields_status_notification_onqueue;
 
-                if ($fileStatus === -1) {
+                if ($fileStatus === FILE_STATUS_UNAPPROVED) {
                     $statusDescription = $lang->ougc_fileprofilefields_status_notification_unapproved;
                 }
 
@@ -1136,7 +1122,7 @@ function buildFileFields(
     $customFileProfileFields[$fieldIdentifier] = $filePreview;
 
     if (!in_array($templatePrefix, ['profile', 'postbit'])) {
-        load_language();
+        languageLoad();
 
         $fileExtensions = $validMimeTypes = [];
 

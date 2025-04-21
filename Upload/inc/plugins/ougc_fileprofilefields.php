@@ -28,11 +28,11 @@
 
 declare(strict_types=1);
 
-use function ougc\FileProfileFields\Admin\_activate;
-use function ougc\FileProfileFields\Admin\_info;
-use function ougc\FileProfileFields\Admin\_install;
-use function ougc\FileProfileFields\Admin\_is_installed;
-use function ougc\FileProfileFields\Admin\_uninstall;
+use function ougc\FileProfileFields\Admin\pluginActivation;
+use function ougc\FileProfileFields\Admin\pluginInformation;
+use function ougc\FileProfileFields\Admin\pluginInstallation;
+use function ougc\FileProfileFields\Admin\pluginIsInstalled;
+use function ougc\FileProfileFields\Admin\pluginUninstallation;
 use function ougc\FileProfileFields\Core\addHooks;
 
 use const ougc\FileProfileFields\Core\ROOT;
@@ -68,25 +68,25 @@ addHooks('ougc\FileProfileFields\Hooks\Forum');
 
 function ougc_fileprofilefields_info()
 {
-    return _info();
+    return pluginInformation();
 }
 
 function ougc_fileprofilefields_activate()
 {
-    _activate();
+    pluginActivation();
 }
 
 function ougc_fileprofilefields_install()
 {
-    _install();
+    pluginInstallation();
 }
 
 function ougc_fileprofilefields_is_installed()
 {
-    return _is_installed();
+    return pluginIsInstalled();
 }
 
 function ougc_fileprofilefields_uninstall()
 {
-    _uninstall();
+    pluginUninstallation();
 }

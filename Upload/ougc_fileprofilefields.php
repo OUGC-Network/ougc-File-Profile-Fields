@@ -29,8 +29,8 @@
 declare(strict_types=1);
 
 use function ougc\FileProfileFields\Core\getProfileFieldsCache;
-use function ougc\FileProfileFields\Core\load_language;
-use function ougc\FileProfileFields\Core\query_file;
+use function ougc\FileProfileFields\Core\languageLoad;
+use function ougc\FileProfileFields\Core\fileGet;
 
 use const ougc\FileProfileFields\LOAD_FULL_LOGIC;
 
@@ -132,7 +132,7 @@ if (LOAD_FULL_LOGIC) {
     $errorFunction = 'errorCustom';
 }
 
-load_language();
+languageLoad();
 
 if (!function_exists('ougc_fileprofilefields_info')) {
     $errorFunction($lang->ougc_fileprofilefields_errors_deactivated);
@@ -151,7 +151,7 @@ if (!is_member($mybb->settings['ougc_fileprofilefields_groups_moderators'])) {
     $whereClauses[] = "status='1'";
 }
 
-$fileData = query_file(
+$fileData = fileGet(
     $whereClauses,
     ['thumbnail', 'fid', 'name', 'filename', 'filemime', 'filesize', 'uid', 'status'],
     ['limit' => 1]
@@ -219,7 +219,7 @@ if (!$thumbnail) {
     $fileUserID = (int)$fileData['uid'];
 
     $update_downloads = $fileStatus === 1 && (
-            $mybb->user['uid'] && $mybb->settings['ougc_fileprofilefields_author_downloads'] || ($fileUserID != $currentUserID)
+            $currentUserID && $mybb->settings['ougc_fileprofilefields_author_downloads'] || ($fileUserID !== $currentUserID)
         );
 
     if ($update_downloads && !empty($mybb->settings['ougc_fileprofilefields_download_interval'])) {
