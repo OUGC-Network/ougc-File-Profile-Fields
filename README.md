@@ -175,6 +175,11 @@ Below you can find a description of the plugin settings.
 This plugin has no additional configurations; after activating make sure to modify the global settings in order to get
 this plugin working.
 
+1. You can use the `$customFileProfileFields` array to display individual file profile fields in your templates.
+   For example, `{$customFileProfileFields['fidX']}` where `X` is the custom profile field identifier (fid).
+   If used in the `postbit` or `postbit_classic` templates, it will render the file profile field in the post for that
+   user.
+
 ### 🛠 File Permissions <a name = "file_permissions"></a>
 
 For automatic file edits the following files require to be chmod `777` (on *nix servers).
