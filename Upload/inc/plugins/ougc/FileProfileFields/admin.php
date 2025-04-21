@@ -168,15 +168,8 @@ function _activate(): bool
     return true;
 }
 
-function _deactivate(): bool
-{
-    return true;
-}
-
 function _install(): bool
 {
-    global $cache, $db;
-
     _db_verify_tables();
 
     _db_verify_columns();

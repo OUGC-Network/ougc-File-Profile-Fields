@@ -307,7 +307,7 @@ function datahandler_user_delete_start(UserDataHandler &$dh): UserDataHandler
 
     $delete_uids = implode("','", $dh->delete_uids);
 
-    $query = $db->simple_select('ougc_fileprofilefields_files', '*', "uid IN ('{$delete_uids}')");
+    $query = $db->simple_select('ougc_fileprofilefields_files', 'uid, fid', "uid IN ('{$delete_uids}')");
 
     while ($fileData = $db->fetch_array($query)) {
         delete_file((int)$fileData['uid'], $profilefields_cache[$fileData['fid']] ?? []);
@@ -643,13 +643,13 @@ function modcp_start()
     add_breadcrumb($page_title);
 
     if ($mybb->request_method == 'post') {
-        $ids = implode("','", array_map('intval', $mybb->get_input('check', MyBB::INPUT_ARRAY)));
+        $filesIDs = implode("','", array_map('intval', $mybb->get_input('check', MyBB::INPUT_ARRAY)));
 
         if ($mybb->get_input('do') == 'files' && $mybb->get_input('approve')) {
             $db->update_query(
                 'ougc_fileprofilefields_files',
                 ['status' => 1, 'muid' => (int)$mybb->user['uid']],
-                "aid IN ('{$ids}')"
+                "aid IN ('{$filesIDs}')"
             );
 
             redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_approved);
@@ -659,14 +659,34 @@ function modcp_start()
             $db->update_query(
                 'ougc_fileprofilefields_files',
                 ['status' => -1, 'muid' => (int)$mybb->user['uid']],
-                "aid IN ('{$ids}')"
+                "aid IN ('{$filesIDs}')"
             );
 
             redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_unapproved);
         }
 
+        if ($mybb->get_input('do') == 'files' && $mybb->get_input('delete')) {
+            $pfcache = getProfileFieldsCache();
+
+            $profilefields_cache = [];
+
+            if (!empty($pfcache)) {
+                foreach ($pfcache as $profileFieldData) {
+                    $profilefields_cache[$profileFieldData['fid']] = $profileFieldData;
+                }
+            }
+
+            $query = $db->simple_select('ougc_fileprofilefields_files', 'uid, fid', "aid IN ('{$filesIDs}')");
+
+            while ($fileData = $db->fetch_array($query)) {
+                delete_file((int)$fileData['uid'], $profilefields_cache[$fileData['fid']] ?? []);
+            }
+
+            redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_unapproved);
+        }
+
         if ($mybb->get_input('do') == 'logs' && $mybb->get_input('delete')) {
-            $db->delete_query('ougc_fileprofilefields_logs', "lid IN ('{$ids}')");
+            $db->delete_query('ougc_fileprofilefields_logs', "lid IN ('{$filesIDs}')");
 
             redirect(urlHandlerBuild($build_url), $lang->ougc_fileprofilefields_redirect_deleted);
         }
@@ -1068,12 +1088,12 @@ function ougc_profile_fields_categories_build_fields_categories_end(array &$hook
         $categoryID
     );
 
-    if (!isset($fileProfileFieldsProcessedUsers[$userID])) {
-        $fileProfileFieldsProcessedUsers[$userID] = true;
-    }
+    $fileProfileFieldsProcessedUsers[$userID] = true;
 
     if (!empty($userFile)) {
         $hookArguments['userFieldValue'] = $userFile;
+    } else {
+        $hookArguments['userFieldValue'] = '';
     }
 
     $hookArguments['fileData'] = $fileProfileFieldsCachedUsersData[$userID][$fileID];

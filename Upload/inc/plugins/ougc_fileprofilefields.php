@@ -28,19 +28,11 @@
 
 declare(strict_types=1);
 
-// Die if IN_MYBB is not defined, for security reasons.
 use function ougc\FileProfileFields\Admin\_activate;
-
-use function ougc\FileProfileFields\Admin\_deactivate;
-
 use function ougc\FileProfileFields\Admin\_info;
-
 use function ougc\FileProfileFields\Admin\_install;
-
 use function ougc\FileProfileFields\Admin\_is_installed;
-
 use function ougc\FileProfileFields\Admin\_uninstall;
-
 use function ougc\FileProfileFields\Core\addHooks;
 
 use const ougc\FileProfileFields\Core\ROOT;
@@ -59,7 +51,6 @@ define('ougc\FileProfileFields\Core\ROOT', MYBB_ROOT . 'inc/plugins/ougc/FilePro
 
 require_once ROOT . '/core.php';
 
-// PLUGINLIBRARY
 defined('PLUGINLIBRARY') || define('PLUGINLIBRARY', MYBB_ROOT . 'inc/plugins/pluginlibrary.php');
 
 // Add our hooks
@@ -75,37 +66,26 @@ require_once ROOT . '/forum_hooks.php';
 
 addHooks('ougc\FileProfileFields\Hooks\Forum');
 
-// Plugin API
 function ougc_fileprofilefields_info()
 {
     return _info();
 }
 
-// Activate the plugin.
 function ougc_fileprofilefields_activate()
 {
     _activate();
 }
 
-// Deactivate the plugin.
-function ougc_fileprofilefields_deactivate()
-{
-    _deactivate();
-}
-
-// Install the plugin.
 function ougc_fileprofilefields_install()
 {
     _install();
 }
 
-// Check if installed.
 function ougc_fileprofilefields_is_installed()
 {
     return _is_installed();
 }
 
-// Unnstall the plugin.
 function ougc_fileprofilefields_uninstall()
 {
     _uninstall();

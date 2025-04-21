@@ -33,12 +33,7 @@ namespace ougc\FileProfileFields\Core;
 use AbstractPdoDbDriver;
 use MyBB;
 use OUGC_ProfiecatsCache;
-
 use ReflectionProperty;
-
-use function delete_uploaded_file;
-
-use function generate_thumbnail;
 
 use function ougc\FileProfileFields\Admin\_info;
 
